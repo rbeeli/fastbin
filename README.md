@@ -107,6 +107,8 @@ JSON is preferred over other (prioprietary) schema formats because it is human-r
 - [FlatBuffers](https://google.github.io/flatbuffers/)
 - [FastBinaryEncoding](https://github.com/chronoxor/FastBinaryEncoding)
 - [Cap'n Proto](https://capnproto.org/)
+- [Simple Binary Encoding](https://github.com/real-logic/simple-binary-encoding)
+- [zpp::bits](https://github.com/eyalz800/zpp_bits)
 
 # Internals
 
