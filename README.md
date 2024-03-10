@@ -21,25 +21,25 @@ A Python script generates the C++ and Julia code for the serialization and deser
 
 ### Supported types
 
-| Schema type | C++ type         | Julia type       |
-| ----------- | ---------------- | ---------------- |
-| `int8`      | `int8_t`         | `Int8`           |
-| `int16`     | `int16_t`        | `Int16`          |
-| `int32`     | `int32_t`        | `Int32`          |
-| `int64`     | `int64_t`        | `Int64`          |
-| `uint8`     | `uint8_t`        | `UInt8`          |
-| `uint16`    | `uint16_t`       | `UInt16`         |
-| `uint32`    | `uint32_t`       | `UInt32`         |
-| `uint64`    | `uint64_t`       | `UInt64`         |
-| `float32`   | `float`          | `Float32`        |
-| `float64`   | `double`         | `Float64`        |
-| `char`      | `char`           | `UInt8`          |
-| `byte`      | `std::byte`      | `UInt8`          |
-| `string`    | `std::string`    | `StringView`     |
-| `bool`      | `bool`           | `Bool`           |
-| `vector<T>` | `std::vector<T>` | `Vector{T}`      |
-| `enum`      | `enum class`     | `@enumx`         |
-| `struct`    | `struct`         | `mutable struct` |
+| Schema type | C++ type           | Julia type       |
+| ----------- | ------------------ | ---------------- |
+| `int8`      | `int8_t`           | `Int8`           |
+| `int16`     | `int16_t`          | `Int16`          |
+| `int32`     | `int32_t`          | `Int32`          |
+| `int64`     | `int64_t`          | `Int64`          |
+| `uint8`     | `uint8_t`          | `UInt8`          |
+| `uint16`    | `uint16_t`         | `UInt16`         |
+| `uint32`    | `uint32_t`         | `UInt32`         |
+| `uint64`    | `uint64_t`         | `UInt64`         |
+| `float32`   | `float`            | `Float32`        |
+| `float64`   | `double`           | `Float64`        |
+| `char`      | `char`             | `UInt8`          |
+| `byte`      | `std::byte`        | `UInt8`          |
+| `string`    | `std::string_view` | `StringView`     |
+| `bool`      | `bool`             | `Bool`           |
+| `vector<T>` | `std::vector<T>`   | `Vector{T}`      |
+| `enum`      | `enum class`       | `@enumx`         |
+| `struct`    | `struct`           | `mutable struct` |
 
 ## Schema
 
