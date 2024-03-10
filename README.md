@@ -140,8 +140,8 @@ The number of padding bytes is encoded in the `uint64` value at the beginning of
 **Variable length size layout:**
 
      high bits                                                               low bits
-    +---------------------+-----------------+----------------------------------------+
-    | 3 padding size bits | 5 reserved bits |                      56 data size bits |
-    +---------------------+-----------------+----------------------------------------+
+    +-----------------+---------------------+----------------------------------------+
+    | 5 reserved bits | 3 padding size bits |                      56 data size bits |
+    +-----------------+---------------------+----------------------------------------+
 
 The 56 bits equal roughly 72 petabytes of variable length data, which should be sufficient for nearly all use cases.
