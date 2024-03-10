@@ -126,6 +126,7 @@ class GenContext:
             "uint32": TypeDef("p", "uint32", "UInt32", "", 4, 8, False, True),
             "uint64": TypeDef("p", "uint64", "UInt64", "", 8, 8, False, True),
             "byte": TypeDef("p", "byte", "UInt8", "", 1, 8, False, True),
+            "char": TypeDef("p", "char", "UInt8", "", 1, 8, False, True),
             "float32": TypeDef("p", "float32", "Float32", "", 8, 8, False, True),
             "float64": TypeDef("p", "float64", "Float64", "", 8, 8, False, True),
             "bool": TypeDef("p", "bool", "Bool", "", 1, 8, False, True),
@@ -139,7 +140,7 @@ class GenContext:
             -1,
             True,
             True,
-            self.built_in_types["byte"],
+            self.built_in_types["char"],
         )
 
         # parse namespace
