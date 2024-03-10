@@ -1,0 +1,23 @@
+{
+    "files.associations": {
+        "string_view": "cpp",
+        "array": "cpp",
+        "bitset": "cpp",
+        "initializer_list": "cpp",
+        "span": "cpp",
+        "utility": "cpp",
+        "__hash_table": "cpp",
+        "__split_buffer": "cpp",
+        "__tree": "cpp",
+        "deque": "cpp",
+        "iterator": "cpp",
+        "map": "cpp",
+        "queue": "cpp",
+        "random": "cpp",
+        "stack": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "cstddef": "cpp"
+    }
+}

@@ -1,0 +1,106 @@
+{
+    "namespace": "my_models",
+    "enums": {
+        "TradeSide": {
+            "type": "uint8",
+            "members": {
+                "Sell": { "value": 0 },
+                "Buy": { "value": 1 }
+            }
+        },
+        "OrderbookType": {
+            "type": "uint8",
+            "members": {
+                "Snapshot": { "value": 1 },
+                "Delta": { "value": 2 }
+            }
+        },
+        "TickDirection": {
+            "type": "uint8",
+            "docstring": "https://bybit-exchange.github.io/docs/v5/enum#tickdirection",
+            "members": {
+                "Unknown": { "value": 0 },
+                "PlusTick": { "value": 1, "docstring": "Price rise." },
+                "ZeroPlusTick": {
+                    "value": 2,
+                    "docstring": [
+                        "Trade occurs at the same price as the previous trade,",
+                        "which occurred at a price lower than that for the trade preceding it.",
+                        "",
+                        "Example price series: 100 -> 99 -> 99"
+                    ]
+                },
+                "MinusTick": { "value": 3, "docstring": "Price drop." },
+                "ZeroMinusTick": {
+                    "value": 4,
+                    "docstring": [
+                        "Trade occurs at the same price as the previous trade,",
+                        "which occurred at a price higher than that for the trade preceding it.",
+                        "",
+                        "Example price series: 100 -> 101 -> 101"
+                    ]
+                }
+            }
+        }
+    },
+    "structs": {
+        "StreamTrade": {
+            "docstring": "https://bybit-exchange.github.io/docs/v5/websocket/public/trade",
+            "members": {
+                "server_time": "int64",
+                "recv_time": "int64",
+                "symbol": "string",
+                "fill_time": "int64",
+                "side": "enum:TradeSide",
+                "price": "float64",
+                "price_chg_dir": "enum:TickDirection",
+                "size": "float64",
+                "trade_id": "string",
+                "block_trade": "bool"
+            }
+        },
+        "StreamOrderbook": {
+            "docstring": "https://bybit-exchange.github.io/docs/v5/websocket/public/orderbook",
+            "members": {
+                "server_time": "int64",
+                "recv_time": "int64",
+                "cts": "int64",
+                "type": "enum:OrderbookType",
+                "depth": "uint16",
+                "symbol": "string",
+                "update_id": "uint64",
+                "seq_num": "uint64",
+                "bid_prices": "vector<float64>",
+                "bid_quantities": "vector<float64>",
+                "ask_prices": "vector<float64>",
+                "ask_quantities": "vector<float64>"
+            }
+        },
+        "ChildVar": {
+            "members": {
+                "field1": "int32",
+                "field2": "string"
+            }
+        },
+        "ChildFixed": {
+            "members": {
+                "field1": "int32",
+                "field2": "int32"
+            }
+        },
+        "Parent": {
+            "members": {
+                "field1": "int32",
+                "field2": "string",
+                "child1": "struct:ChildVar",
+                "child2": "struct:ChildFixed"
+            }
+        },
+        "UInt32Vector": {
+            "members": {
+                "values": "vector<uint32>",
+                "count": "uint32"
+            }
+        }
+    }
+}

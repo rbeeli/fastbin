@@ -1,0 +1,111 @@
+{
+    "version": 3,
+    "configurePresets": [
+      {
+        "name": "_common",
+        "description": "Builds with minimum standards.",
+        "hidden": true,
+        "cacheVariables": {
+          "CMAKE_MAKE_PROGRAM": "make",
+          "CMAKE_CXX_EXTENSIONS": "OFF",
+          "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+          "CMAKE_CXX_STANDARD": "23"
+        }
+      },
+      {
+        "name": "_gcc",
+        "inherits": ["_common"],
+        "description": "GCC compiler.",
+        "hidden": true,
+        "cacheVariables": {
+          "CMAKE_CXX_COMPILER": "g++",
+          "CMAKE_TOOLCHAIN_FILE": {
+            "type": "FILEPATH",
+            "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+          }
+        },
+        "environment": {
+          "CMAKE_CXX_FLAGS": "-fcoroutines -Wall -Wpedantic -Wextra -Wunused -Wconversion -Wno-unused-parameter -Wno-unused-function -Woverloaded-virtual -Wnon-virtual-dtor -Wno-ignored-attributes"
+        }
+      },
+      {
+        "name": "_clang",
+        "inherits": ["_common"],
+        "description": "GCC compiler.",
+        "hidden": true,
+        "cacheVariables": {
+          "CMAKE_CXX_COMPILER": "clang++",
+          "CMAKE_TOOLCHAIN_FILE": {
+            "type": "FILEPATH",
+            "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+          }
+        },
+        "environment": {
+          "CMAKE_CXX_FLAGS": "-stdlib=libc++ -Wall -Wpedantic -Wextra -Wunused -Wconversion -Wno-unused-parameter -Wno-unused-function -Woverloaded-virtual -Wnon-virtual-dtor -Wno-ignored-attributes"
+        }
+      },
+      {
+        "name": "clang_debug",
+        "description": "Build with no optimizations and debug information",
+        "inherits": ["_clang"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0"
+        }
+      },
+      {
+        "name": "gcc_debug",
+        "description": "Build with no optimizations and debug information",
+        "inherits": ["_gcc"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0"
+        }
+      },
+      {
+        "name": "clang_debug_native",
+        "description": "Build with no optimizations and debug information",
+        "inherits": ["_clang"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0 -march=native"
+        }
+      },
+      {
+        "name": "gcc_debug_sanitized",
+        "description": "Build with no optimizations and debug information incl. safety checks",
+        "inherits": ["_gcc"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0 -fsanitize=leak -fsanitize=address -fsanitize=undefined"
+        }
+      },
+      {
+        "name": "clang_debug_sanitized",
+        "description": "Build with no optimizations and debug information incl. safety checks",
+        "inherits": ["_clang"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0 -fsanitize=leak -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -funwind-tables"
+        }
+      },
+      {
+        "name": "clang_release",
+        "description": "Build with optimizations and little debug information",
+        "inherits": ["_clang"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Release",
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -g1 -O3 -flto=auto -DNDEBUG"
+        }
+      },
+      {
+        "name": "gcc_release",
+        "description": "Build with optimizations and little debug information",
+        "inherits": ["_gcc"],
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Release",
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -g1 -O3 -flto=auto -DNDEBUG"
+        }
+      }
+    ]
+  }
