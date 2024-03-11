@@ -14,22 +14,22 @@ The `finalize!()` method MUST be called after all setter methods have been calle
 It is the responsibility of the caller to ensure that the buffer is
 large enough to hold the serialized data.
 """
-mutable struct UInt32Vector
+mutable struct StructVector
     buffer::Ptr{UInt8}
     buffer_size::UInt64
     owns_buffer::Bool
 
-    function UInt32Vector(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
+    function StructVector(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
         new(buffer, buffer_size, owns_buffer)
     end
 
-    function UInt32Vector(buffer_size::Integer)
+    function StructVector(buffer_size::Integer)
         buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
         new(buffer, buffer_size, true)
     end
 end
 
-function Base.finalizer(obj::UInt32Vector)
+function Base.finalizer(obj::StructVector)
     if obj.owns_buffer && obj.buffer != C_NULL
         Base.Libc.free(obj.buffer)
         obj.buffer = C_NULL
@@ -37,75 +37,68 @@ function Base.finalizer(obj::UInt32Vector)
     nothing
 end
 
-@inline function values(obj::UInt32Vector)::Vector{UInt32}
-    ptr::Ptr{UInt32} = reinterpret(Ptr{UInt32}, obj.buffer + fastbin_values_offset(obj))
+@inline function values(obj::StructVector)::Vector{ChildFixed}
+    ptr::Ptr{ChildFixed} = reinterpret(Ptr{ChildFixed}, obj.buffer + fastbin_values_offset(obj))
     unaligned_size::UInt64 = fastbin_values_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
-    count::UInt64 = n_bytes >> 2
-    return unsafe_wrap(Vector{UInt32}, ptr + 8, count, own=false)
+    count::UInt64 = n_bytes / 16
+    return unsafe_wrap(Vector{ChildFixed}, ptr + 8, count, own=false)
 end
 
-@inline function values!(obj::UInt32Vector, value::Vector{UInt32})
+@inline function values!(obj::StructVector, value::Vector{ChildFixed})
     offset::UInt64 = fastbin_values_offset(obj)
-    elements_size::UInt64 = length(value) * 4
-    unaligned_size::UInt64 = 8 + elements_size
-    aligned_size::UInt64 = (unaligned_size + 7) & ~7
-    aligned_diff::UInt64 = aligned_size - unaligned_size
-    aligned_size_high::UInt64 = aligned_size | (aligned_diff << 56)
-    unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), aligned_size_high)
+    elements_size::UInt64 = length(value) * 16
+    unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), 8 + elements_size)
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, elements_size)
 end
 
-@inline function fastbin_values_offset(obj::UInt32Vector)::UInt64
+@inline function fastbin_values_offset(obj::StructVector)::UInt64
     return 8
 end
 
-@inline function fastbin_values_size(obj::UInt32Vector)::UInt64
+@inline function fastbin_values_size(obj::StructVector)::UInt64
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + fastbin_values_offset(obj)))
-    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
-    return aligned_size
+    return stored_size
 end
 
-@inline function fastbin_values_size_unaligned(obj::UInt32Vector)::UInt64
+@inline function fastbin_values_size_unaligned(obj::StructVector)::UInt64
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + fastbin_values_offset(obj)))
-    aligned_diff::UInt64 = stored_size >> 56
-    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
-    return aligned_size - aligned_diff
+    return stored_size
 end
 
-@inline function count(obj::UInt32Vector)::UInt32
+@inline function count(obj::StructVector)::UInt32
     return unsafe_load(reinterpret(Ptr{UInt32}, obj.buffer + fastbin_count_offset(obj)))
 end
 
-@inline function count!(obj::UInt32Vector, value::UInt32)
+@inline function count!(obj::StructVector, value::UInt32)
     unsafe_store!(reinterpret(Ptr{UInt32}, obj.buffer + fastbin_count_offset(obj)), value)
 end
 
-@inline function fastbin_count_offset(obj::UInt32Vector)::UInt64
+@inline function fastbin_count_offset(obj::StructVector)::UInt64
     return fastbin_values_offset(obj) + fastbin_values_size(obj)
 end
 
-@inline function fastbin_count_size(obj::UInt32Vector)::UInt64
+@inline function fastbin_count_size(obj::StructVector)::UInt64
     return 8
 end
 
-@inline function fastbin_compute_binary_size(obj::UInt32Vector)::UInt64
+@inline function fastbin_compute_binary_size(obj::StructVector)::UInt64
     return fastbin_count_offset(obj) + fastbin_count_size(obj)
 end
 
-@inline function fastbin_finalize!(obj::UInt32Vector)
+@inline function fastbin_finalize!(obj::StructVector)
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer), fastbin_compute_binary_size(obj))
     nothing
 end
 
-@inline function fastbin_binary_size(obj::UInt32Vector)::UInt64
+@inline function fastbin_binary_size(obj::StructVector)::UInt64
     return unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer))
 end
 
-function show(io::IO, obj::UInt32Vector)
-    print(io, "[my_models::UInt32Vector]")
+function show(io::IO, obj::StructVector)
+    print(io, "[my_models::StructVector]")
     print(io, "\n    values: ")
     show(io, values(obj))
     print(io, "\n    count: ")

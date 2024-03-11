@@ -24,8 +24,9 @@ TEST(fastbin, ser_de_StreamOrderbook)
 {
     const size_t buffer_size = 1024;
     byte* buffer = new byte[buffer_size]();
+    bool owns_buffer = false;
 
-    my_models::StreamOrderbook ob(buffer, buffer_size, false);
+    my_models::StreamOrderbook ob(buffer, buffer_size, owns_buffer);
     ob.type(my_models::OrderbookType::Delta);
     ob.server_time(748949849849);
     ob.recv_time(748949849852);
@@ -76,29 +77,28 @@ TEST(fastbin, ser_de_Nested)
     const size_t buffer_size = 1024;
     byte* buffer = new byte[buffer_size]();
 
-    my_models::Parent p(buffer, buffer_size, false);
+    my_models::Parent p(buffer, buffer_size, true);
     p.field1(123);
-    p.field2("test1");
 
     p.child1().field1(456);
-    p.child1().field2("test2");
+    p.child1().field2(789);
     p.child1().fastbin_finalize();
 
     p.child2().field1(789);
-    p.child2().field2(989);
+    p.child2().field2("test");
     p.child2().fastbin_finalize();
+
+    p.str("str");
 
     p.fastbin_finalize();
 
     EXPECT_EQ(p.fastbin_binary_size(), p.fastbin_compute_binary_size());
     EXPECT_EQ(p.field1(), 123);
-    EXPECT_EQ(p.field2(), "test1");
     EXPECT_EQ(p.child1().field1(), 456);
-    EXPECT_EQ(p.child1().field2(), "test2");
+    EXPECT_EQ(p.child1().field2(), 789);
     EXPECT_EQ(p.child2().field1(), 789);
-    EXPECT_EQ(p.child2().field2(), 989);
-
-    delete[] buffer;
+    EXPECT_EQ(p.child2().field2(), "test");
+    EXPECT_EQ(p.str(), "str");
 }
 
 TEST(fastbin, ser_de_UInt32Vector)

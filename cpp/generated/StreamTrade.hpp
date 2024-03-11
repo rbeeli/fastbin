@@ -110,7 +110,7 @@ struct StreamTrade
 
     constexpr inline size_t fastbin_recv_time_offset() const noexcept
     {
-        return fastbin_server_time_offset() + fastbin_server_time_size();
+        return 16;
     }
 
     constexpr inline size_t fastbin_recv_time_size() const noexcept
@@ -129,18 +129,20 @@ struct StreamTrade
     inline void symbol(const std::string_view value) noexcept
     {
         size_t offset = fastbin_symbol_offset();
-        size_t unaligned_size = 8 + value.size() * sizeof(char);
+        size_t elements_size = value.size() * 1;
+        size_t unaligned_size = 8 + elements_size;
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
         *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
-        auto el_ptr = reinterpret_cast<char*>(buffer + offset + 8);
-        std::copy(value.begin(), value.end(), el_ptr);
+        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
+        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
+        std::copy(src_ptr, src_ptr + elements_size, dest_ptr);
     }
 
     constexpr inline size_t fastbin_symbol_offset() const noexcept
     {
-        return fastbin_recv_time_offset() + fastbin_recv_time_size();
+        return 24;
     }
 
     constexpr inline size_t fastbin_symbol_size() const noexcept
@@ -269,13 +271,15 @@ struct StreamTrade
     inline void trade_id(const std::string_view value) noexcept
     {
         size_t offset = fastbin_trade_id_offset();
-        size_t unaligned_size = 8 + value.size() * sizeof(char);
+        size_t elements_size = value.size() * 1;
+        size_t unaligned_size = 8 + elements_size;
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
         *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
-        auto el_ptr = reinterpret_cast<char*>(buffer + offset + 8);
-        std::copy(value.begin(), value.end(), el_ptr);
+        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
+        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
+        std::copy(src_ptr, src_ptr + elements_size, dest_ptr);
     }
 
     constexpr inline size_t fastbin_trade_id_offset() const noexcept

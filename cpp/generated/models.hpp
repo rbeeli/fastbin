@@ -10,3 +10,4 @@
 #include "ChildFixed.hpp"
 #include "Parent.hpp"
 #include "UInt32Vector.hpp"
+#include "StructVector.hpp"

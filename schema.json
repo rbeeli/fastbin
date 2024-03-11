@@ -91,14 +91,20 @@
         "Parent": {
             "members": {
                 "field1": "int32",
-                "field2": "string",
-                "child1": "struct:ChildVar",
-                "child2": "struct:ChildFixed"
+                "child1": "struct:ChildFixed",
+                "child2": "struct:ChildVar",
+                "str": "string"
             }
         },
         "UInt32Vector": {
             "members": {
                 "values": "vector<uint32>",
+                "count": "uint32"
+            }
+        },
+        "StructVector": {
+            "members": {
+                "values": "vector<struct:ChildFixed>",
                 "count": "uint32"
             }
         }

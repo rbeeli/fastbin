@@ -422,15 +422,15 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
         # primitive
         code = f"        *reinterpret_cast<{cpp_type}*>(buffer + fastbin_{member_def.name}_offset()) = value;\n"
     elif type_def.category == "c":
-        # container with variable length (string, vector<T>)
+        # container with variable length (string, vector<T>) and fixed element size
         el_type_def = member_def.type_def.element_type_def
-        el_cpp_type = el_type_def.cpp_type
-        
+        el_size_bytes = el_type_def.native_size
         code = f"        size_t offset = fastbin_{member_def.name}_offset();\n"
+        code += f"        size_t elements_size = value.size() * {el_size_bytes};\n"
         maybe_unaligned = el_type_def.native_size % 8 != 0
         if maybe_unaligned:
             # string or vector<T> with size of T not divisible of 8
-            code += f"        size_t unaligned_size = 8 + value.size() * sizeof({el_cpp_type});\n"
+            code += f"        size_t unaligned_size = 8 + elements_size;\n"
             code += f"        size_t aligned_size = (unaligned_size + 7) & ~7;\n"
             code += f"        size_t aligned_diff = aligned_size - unaligned_size;\n"
             # add diff to high-bits of aligned_size
@@ -438,11 +438,10 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
             code += f"        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;\n"
         else:
             # element size is divisible by 8, no alignment adjustment needed
-            code += f"        *reinterpret_cast<size_t*>(buffer + offset) = 8 + value.size() * sizeof({el_cpp_type});\n"
-        
-        code += f"        auto el_ptr = reinterpret_cast<{el_cpp_type}*>(buffer + offset + 8);\n"
-        code += f"        std::copy(value.begin(), value.end(), el_ptr);\n"
-        
+            code += f"        *reinterpret_cast<size_t*>(buffer + offset) = 8 + elements_size;\n"
+        code += f"        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);\n"
+        code += f"        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());\n"
+        code += f"        std::copy(src_ptr, src_ptr + elements_size, dest_ptr);\n"
     elif type_def.category == "s":
         # struct
         code = f'        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct {cpp_type} not finalized, call fastbin_finalize() on struct after creation.");\n'
@@ -464,10 +463,10 @@ def generate_size_member_body(
 
     if type_def.category in ["p", "e"]:
         # primitives, enum
-        code = f"        return {member_def.type_def.aligned_size};\n"
+        code = f"        return {type_def.aligned_size};\n"
     elif type_def.category == "c":
         # container with variable length (string, vector<T>)
-        el_type_def = member_def.type_def.element_type_def
+        el_type_def = type_def.element_type_def
         code = f"        size_t stored_size = *reinterpret_cast<size_t*>(buffer + fastbin_{member_def.name}_offset());\n"
         maybe_unaligned = el_type_def.native_size % 8 != 0
         if maybe_unaligned:
@@ -484,10 +483,10 @@ def generate_size_member_body(
             code += f"        return stored_size;\n"
     elif type_def.category == "s":
         # structs are always aligned to 8 bytes
-        if member_def.type_def.variable_length:
+        if type_def.variable_length:
             code = f"        return *reinterpret_cast<size_t*>(buffer + fastbin_{member_def.name}_offset());\n"
         else:
-            code = f"        return {member_def.type_def.aligned_size};\n"
+            code = f"        return {type_def.aligned_size};\n"
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
 
@@ -497,12 +496,27 @@ def generate_size_member_body(
 def generate_offset_member_body(
     ctx: GenContext, index: int, struct_def: StructDef, member_def: StructMemberDef
 ):
-    member_names = list(name for name, _ in struct_def.members.items())
-    if index == 0:
-        # first 8 bytes are reserved for the size of the struct
-        code_body = f"        return 8;\n"
+    member_names = list(struct_def.members.keys())
+    if struct_def.type_def.variable_length:
+        # first 8 bytes are reserved for the size of the variable-length struct
+        offset = 8
     else:
+        # fixed-length struct
+        offset = 0
+    for (i, prev_member) in enumerate(struct_def.members.values()):
+        if i < index:
+            if prev_member.type_def.variable_length:
+                # cannot precompute fixed offset, variable length member found
+                offset = -1
+                break
+            else:
+                # fixed-length members only take up their aligned size space
+                offset += prev_member.type_def.aligned_size
+    if offset == -1:
+        # variable length member found, cannot precompute offset
         code_body = f"        return fastbin_{member_names[index-1]}_offset() + fastbin_{member_names[index-1]}_size();\n"
+    else:
+        code_body = f"        return {offset};\n"
     return code_body
 
 
@@ -523,7 +537,13 @@ def ostream_member_output(ctx: GenContext, member_def: StructMemberDef):
 
 
 def generate_struct(ctx: GenContext, struct_def: StructDef):
-    print(f"Generating struct {ctx.namespace}::{struct_def.name}")
+    print(f"Generating struct {ctx.namespace}::{struct_def.name}", end=" ")
+    if struct_def.type_def.variable_length:
+        print(f"[size=variable]")
+    else:
+        print(f"[size={struct_def.type_def.aligned_size} bytes]")
+    for name, member_def in struct_def.members.items():
+        print(f"- {name}: {member_def.type_def.cpp_type}")
 
     includes = [
         "#include <cstddef>",

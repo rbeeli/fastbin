@@ -19,6 +19,11 @@ mutable struct ChildFixed
     function ChildFixed(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
         new(buffer, buffer_size, owns_buffer)
     end
+
+    function ChildFixed(buffer_size::Integer)
+        buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
+        new(buffer, buffer_size, true)
+    end
 end
 
 function Base.finalizer(obj::ChildFixed)
@@ -38,7 +43,7 @@ end
 end
 
 @inline function fastbin_field1_offset(obj::ChildFixed)::UInt64
-    return 8
+    return 0
 end
 
 @inline function fastbin_field1_size(obj::ChildFixed)::UInt64
@@ -54,7 +59,7 @@ end
 end
 
 @inline function fastbin_field2_offset(obj::ChildFixed)::UInt64
-    return fastbin_field1_offset(obj) + fastbin_field1_size(obj)
+    return 8
 end
 
 @inline function fastbin_field2_size(obj::ChildFixed)::UInt64

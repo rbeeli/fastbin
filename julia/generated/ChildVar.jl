@@ -23,6 +23,11 @@ mutable struct ChildVar
     function ChildVar(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
         new(buffer, buffer_size, owns_buffer)
     end
+
+    function ChildVar(buffer_size::Integer)
+        buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
+        new(buffer, buffer_size, true)
+    end
 end
 
 function Base.finalizer(obj::ChildVar)
@@ -59,17 +64,19 @@ end
 
 @inline function field2!(obj::ChildVar, value::T) where {T<:AbstractString}
     offset::UInt64 = fastbin_field2_offset(obj)
-    unaligned_size::UInt64 = 8 + length(value) * sizeof(UInt8)
+    elements_size::UInt64 = length(value) * 1
+    unaligned_size::UInt64 = 8 + elements_size
     aligned_size::UInt64 = (unaligned_size + 7) & ~7
     aligned_diff::UInt64 = aligned_size - unaligned_size
     aligned_size_high::UInt64 = aligned_size | (aligned_diff << 56)
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), aligned_size_high)
-    el_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + offset + 8)
-    unsafe_copyto!(el_ptr, pointer(value), length(value))
+    dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
+    src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
+    unsafe_copyto!(dest_ptr, src_ptr, elements_size)
 end
 
 @inline function fastbin_field2_offset(obj::ChildVar)::UInt64
-    return fastbin_field1_offset(obj) + fastbin_field1_size(obj)
+    return 16
 end
 
 @inline function fastbin_field2_size(obj::ChildVar)::UInt64

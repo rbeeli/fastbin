@@ -80,7 +80,7 @@ struct ChildFixed
 
     constexpr inline size_t fastbin_field1_offset() const noexcept
     {
-        return 8;
+        return 0;
     }
 
     constexpr inline size_t fastbin_field1_size() const noexcept
@@ -100,7 +100,7 @@ struct ChildFixed
 
     constexpr inline size_t fastbin_field2_offset() const noexcept
     {
-        return fastbin_field1_offset() + fastbin_field1_size();
+        return 8;
     }
 
     constexpr inline size_t fastbin_field2_size() const noexcept

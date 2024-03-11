@@ -6,8 +6,8 @@
 #include <span>
 #include <cstdint>
 #include <string_view>
-#include "ChildVar.hpp"
 #include "ChildFixed.hpp"
+#include "ChildVar.hpp"
 
 namespace my_models
 {
@@ -94,55 +94,15 @@ struct Parent
         return 8;
     }
 
-    inline std::string_view field2() const noexcept
-    {
-        size_t n_bytes = fastbin_field2_size_unaligned() - 8;
-        size_t count = n_bytes;
-        auto ptr = reinterpret_cast<const char*>(buffer + fastbin_field2_offset() + 8);
-        return std::string_view(ptr, count);
-    }
-
-    inline void field2(const std::string_view value) noexcept
-    {
-        size_t offset = fastbin_field2_offset();
-        size_t unaligned_size = 8 + value.size() * sizeof(char);
-        size_t aligned_size = (unaligned_size + 7) & ~7;
-        size_t aligned_diff = aligned_size - unaligned_size;
-        size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
-        auto el_ptr = reinterpret_cast<char*>(buffer + offset + 8);
-        std::copy(value.begin(), value.end(), el_ptr);
-    }
-
-    constexpr inline size_t fastbin_field2_offset() const noexcept
-    {
-        return fastbin_field1_offset() + fastbin_field1_size();
-    }
-
-    constexpr inline size_t fastbin_field2_size() const noexcept
-    {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + fastbin_field2_offset());
-        size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
-        return aligned_size;
-    }
-
-    constexpr inline size_t fastbin_field2_size_unaligned() const noexcept
-    {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + fastbin_field2_offset());
-        size_t aligned_diff = stored_size >> 56;
-        size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
-        return aligned_size - aligned_diff;
-    }
-
-    inline ChildVar child1() const noexcept
+    inline ChildFixed child1() const noexcept
     {
         auto ptr = buffer + fastbin_child1_offset();
-        return ChildVar(ptr, fastbin_child1_size(), false);
+        return ChildFixed(ptr, fastbin_child1_size(), false);
     }
 
-    inline void child1(const ChildVar& value) noexcept
+    inline void child1(const ChildFixed& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct ChildVar not finalized, call fastbin_finalize() on struct after creation.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct ChildFixed not finalized, call fastbin_finalize() on struct after creation.");
         size_t offset = fastbin_child1_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, buffer + offset);
@@ -150,23 +110,23 @@ struct Parent
 
     constexpr inline size_t fastbin_child1_offset() const noexcept
     {
-        return fastbin_field2_offset() + fastbin_field2_size();
+        return 16;
     }
 
     constexpr inline size_t fastbin_child1_size() const noexcept
     {
-        return *reinterpret_cast<size_t*>(buffer + fastbin_child1_offset());
+        return 16;
     }
 
-    inline ChildFixed child2() const noexcept
+    inline ChildVar child2() const noexcept
     {
         auto ptr = buffer + fastbin_child2_offset();
-        return ChildFixed(ptr, fastbin_child2_size(), false);
+        return ChildVar(ptr, fastbin_child2_size(), false);
     }
 
-    inline void child2(const ChildFixed& value) noexcept
+    inline void child2(const ChildVar& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct ChildFixed not finalized, call fastbin_finalize() on struct after creation.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct ChildVar not finalized, call fastbin_finalize() on struct after creation.");
         size_t offset = fastbin_child2_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, buffer + offset);
@@ -174,17 +134,59 @@ struct Parent
 
     constexpr inline size_t fastbin_child2_offset() const noexcept
     {
-        return fastbin_child1_offset() + fastbin_child1_size();
+        return 32;
     }
 
     constexpr inline size_t fastbin_child2_size() const noexcept
     {
-        return 16;
+        return *reinterpret_cast<size_t*>(buffer + fastbin_child2_offset());
+    }
+
+    inline std::string_view str() const noexcept
+    {
+        size_t n_bytes = fastbin_str_size_unaligned() - 8;
+        size_t count = n_bytes;
+        auto ptr = reinterpret_cast<const char*>(buffer + fastbin_str_offset() + 8);
+        return std::string_view(ptr, count);
+    }
+
+    inline void str(const std::string_view value) noexcept
+    {
+        size_t offset = fastbin_str_offset();
+        size_t elements_size = value.size() * 1;
+        size_t unaligned_size = 8 + elements_size;
+        size_t aligned_size = (unaligned_size + 7) & ~7;
+        size_t aligned_diff = aligned_size - unaligned_size;
+        size_t aligned_size_high = aligned_size | (aligned_diff << 56);
+        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
+        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
+        std::copy(src_ptr, src_ptr + elements_size, dest_ptr);
+    }
+
+    constexpr inline size_t fastbin_str_offset() const noexcept
+    {
+        return fastbin_child2_offset() + fastbin_child2_size();
+    }
+
+    constexpr inline size_t fastbin_str_size() const noexcept
+    {
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + fastbin_str_offset());
+        size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        return aligned_size;
+    }
+
+    constexpr inline size_t fastbin_str_size_unaligned() const noexcept
+    {
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + fastbin_str_offset());
+        size_t aligned_diff = stored_size >> 56;
+        size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        return aligned_size - aligned_diff;
     }
 
     constexpr inline size_t fastbin_compute_binary_size() const noexcept
     {
-        return fastbin_child2_offset() + fastbin_child2_size();
+        return fastbin_str_offset() + fastbin_str_size();
     }
 
     inline void fastbin_finalize() const noexcept
@@ -198,8 +200,8 @@ inline std::ostream& operator<<(std::ostream& os, const my_models::Parent& obj)
 {
     os << "[my_models::Parent size=" << obj.fastbin_binary_size() << " bytes]\n";
     os << "    field1: " << obj.field1() << "\n";
-    os << "    field2: " << std::string(obj.field2()) << "\n";
     os << "    child1: " << obj.child1() << "\n";
     os << "    child2: " << obj.child2() << "\n";
+    os << "    str: " << std::string(obj.str()) << "\n";
     return os;
 }

@@ -27,6 +27,11 @@ mutable struct StreamTrade
     function StreamTrade(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
         new(buffer, buffer_size, owns_buffer)
     end
+
+    function StreamTrade(buffer_size::Integer)
+        buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
+        new(buffer, buffer_size, true)
+    end
 end
 
 function Base.finalizer(obj::StreamTrade)
@@ -62,7 +67,7 @@ end
 end
 
 @inline function fastbin_recv_time_offset(obj::StreamTrade)::UInt64
-    return fastbin_server_time_offset(obj) + fastbin_server_time_size(obj)
+    return 16
 end
 
 @inline function fastbin_recv_time_size(obj::StreamTrade)::UInt64
@@ -79,17 +84,19 @@ end
 
 @inline function symbol!(obj::StreamTrade, value::T) where {T<:AbstractString}
     offset::UInt64 = fastbin_symbol_offset(obj)
-    unaligned_size::UInt64 = 8 + length(value) * sizeof(UInt8)
+    elements_size::UInt64 = length(value) * 1
+    unaligned_size::UInt64 = 8 + elements_size
     aligned_size::UInt64 = (unaligned_size + 7) & ~7
     aligned_diff::UInt64 = aligned_size - unaligned_size
     aligned_size_high::UInt64 = aligned_size | (aligned_diff << 56)
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), aligned_size_high)
-    el_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + offset + 8)
-    unsafe_copyto!(el_ptr, pointer(value), length(value))
+    dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
+    src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
+    unsafe_copyto!(dest_ptr, src_ptr, elements_size)
 end
 
 @inline function fastbin_symbol_offset(obj::StreamTrade)::UInt64
-    return fastbin_recv_time_offset(obj) + fastbin_recv_time_size(obj)
+    return 24
 end
 
 @inline function fastbin_symbol_size(obj::StreamTrade)::UInt64
@@ -195,13 +202,15 @@ end
 
 @inline function trade_id!(obj::StreamTrade, value::T) where {T<:AbstractString}
     offset::UInt64 = fastbin_trade_id_offset(obj)
-    unaligned_size::UInt64 = 8 + length(value) * sizeof(UInt8)
+    elements_size::UInt64 = length(value) * 1
+    unaligned_size::UInt64 = 8 + elements_size
     aligned_size::UInt64 = (unaligned_size + 7) & ~7
     aligned_diff::UInt64 = aligned_size - unaligned_size
     aligned_size_high::UInt64 = aligned_size | (aligned_diff << 56)
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), aligned_size_high)
-    el_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + offset + 8)
-    unsafe_copyto!(el_ptr, pointer(value), length(value))
+    dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
+    src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
+    unsafe_copyto!(dest_ptr, src_ptr, elements_size)
 end
 
 @inline function fastbin_trade_id_offset(obj::StreamTrade)::UInt64

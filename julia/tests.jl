@@ -2,7 +2,7 @@ include("generated/models.jl");
 
 using .my_models
 
-begin
+function test_StreamTrade()
     buffer_size::UInt64 = 196
     buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
 
@@ -23,8 +23,9 @@ begin
 
     show(t)
 end
+test_StreamTrade()
 
-begin
+function test_StreamOrderbook()
     buffer_size::UInt64 = 256
     buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
 
@@ -48,8 +49,9 @@ begin
 
     show(t)
 end
+test_StreamOrderbook()
 
-begin
+function test_UInt32Vector()
     buffer_size::UInt64 = 1024
     buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
 
@@ -67,3 +69,32 @@ begin
 
     show(v)
 end
+test_UInt32Vector()
+
+
+function test_StructVector()
+    buffer_size::UInt64 = 1024
+    buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
+
+    v = StructVector(buffer, buffer_size, true)
+    n_items::UInt32 = 23
+    vals::Vector{ChildFixed} = Vector{ChildFixed}()
+    for i in 0:n_items-1
+        c = ChildFixed(16)
+        field1!(c, Int32(i))
+        field2!(c, Int32(i))
+        fastbin_finalize!(c)
+        push!(vals, c)
+    end
+    values!(v, vals)
+    my_models.count!(v, n_items)
+    fastbin_finalize!(v)
+
+    @assert my_models.count(v) == n_items
+    # @assert all(my_models.values(v) .== vals)
+    # @assert fastbin_binary_size(v) == fastbin_compute_binary_size(v)
+    # @assert fastbin_count_offset(v) + fastbin_count_size(v) == fastbin_binary_size(v)
+
+    show(v)
+end
+test_StructVector()
