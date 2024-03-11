@@ -17,29 +17,34 @@ A Python script generates the C++ and Julia code for the serialization and deser
 - Documentation (docstrings) of data objects in JSON schema file
 - Support for enumeration types
 - Support for nested data objects
-- Support for arrays of primitive types and fixed-size elements
+- Support for arrays of fixed-size elements
+
+### Supported languages
+
+- C++20 (requires `std::span` and `std::byte`)
+- Julia 1.6+ (requires packages `EnumX` and `StringViews`)
 
 ### Supported types
 
-| Schema type | C++ type           | Julia type       |
-| ----------- | ------------------ | ---------------- |
-| `int8`      | `int8_t`           | `Int8`           |
-| `int16`     | `int16_t`          | `Int16`          |
-| `int32`     | `int32_t`          | `Int32`          |
-| `int64`     | `int64_t`          | `Int64`          |
-| `uint8`     | `uint8_t`          | `UInt8`          |
-| `uint16`    | `uint16_t`         | `UInt16`         |
-| `uint32`    | `uint32_t`         | `UInt32`         |
-| `uint64`    | `uint64_t`         | `UInt64`         |
-| `float32`   | `float`            | `Float32`        |
-| `float64`   | `double`           | `Float64`        |
-| `char`      | `char`             | `UInt8`          |
-| `byte`      | `std::byte`        | `UInt8`          |
-| `string`    | `std::string_view` | `StringView`     |
-| `bool`      | `bool`             | `Bool`           |
-| `vector<T>` | `std::vector<T>`   | `Vector{T}`      |
-| `enum`      | `enum class`       | `@enumx`         |
-| `struct`    | `struct`           | `mutable struct` |
+| Category    | Schema type | C++ type           | Julia type       |
+| ----------- | ----------- | ------------------ | ---------------- |
+| Primitive   | `int8`      | `int8_t`           | `Int8`           |
+| Primitive   | `int16`     | `int16_t`          | `Int16`          |
+| Primitive   | `int32`     | `int32_t`          | `Int32`          |
+| Primitive   | `int64`     | `int64_t`          | `Int64`          |
+| Primitive   | `uint8`     | `uint8_t`          | `UInt8`          |
+| Primitive   | `uint16`    | `uint16_t`         | `UInt16`         |
+| Primitive   | `uint32`    | `uint32_t`         | `UInt32`         |
+| Primitive   | `uint64`    | `uint64_t`         | `UInt64`         |
+| Primitive   | `float32`   | `float`            | `Float32`        |
+| Primitive   | `float64`   | `double`           | `Float64`        |
+| Primitive   | `char`      | `char`             | `UInt8`          |
+| Primitive   | `byte`      | `std::byte`        | `UInt8`          |
+| Primitive   | `bool`      | `bool`             | `Bool`           |
+| Container   | `string`    | `std::string_view` | `StringView`     |
+| Container   | `vector<T>` | `std::vector<T>`   | `Vector{T}`      |
+| Enumeration | `enum`      | `enum class`       | `@enumx`         |
+| Struct      | `struct`    | `struct`           | `mutable struct` |
 
 ## Schema
 
@@ -82,7 +87,12 @@ JSON is preferred over other (prioprietary) schema formats because it is human-r
       ]
     },
     "Parent": {
-      "docstring": ["Docstring of Parent struct.", "Child needs to be defined before Parent in order to reference it."],
+      "docstring": [
+        "Multi-line docstring of struct `Parent`.",
+        "Note that `Child` needs to be defined in schema before `Parent` in order to reference it.",
+        "",
+        "Some more docstring."
+      ],
       "members": [
         { "name": "child", "type": "struct:Child" },
         { "name": "text", "type": "string" }
@@ -98,7 +108,7 @@ JSON is preferred over other (prioprietary) schema formats because it is human-r
 - Variable-sized members need to be set in order they appear in the schema
 - No support for pointers or references
 - No support for polymorphic types
-- No support for arrays of variable-sized structs
+- No support for arrays of variable-sized elements (e.g. `vector<string>`, `vector<struct:MyVarStruct>`)
 - No support for unions
 - No support for circular references
 
@@ -114,11 +124,13 @@ JSON is preferred over other (prioprietary) schema formats because it is human-r
 
 ## Memory layout
 
+The object tree, as defined in the JSON schema, is serialized into a contiguous memory buffer.
 The root object must be a schema-defined struct type.
-Each member of the struct is serialized into a contiguous memory buffer in order they appear in the schema.
-Nested data is serialized in a depth-first order.
+Each member of the struct is serialized into a contiguous memory buffer in the order they appear in the schema.
 
-The buffer is allocated by the user and needs to be large enough to hold the serialized object.
+Consequently, the order variable-sized members are set MUST match the order in the schema definition, e.g. for strings, vectors or variable-sized struct members.
+
+The buffer is allocated by the user and needs to be large enough to hold the whole serialized object tree.
 
 ## 64-bit word size and alignment
 
@@ -128,16 +140,17 @@ This is done to ensure that the struct as a whole is aligned to 8 bytes, and eac
 
 ## Fixed length members
 
-Fixed length members are serialized directly into the buffer space without any additional information.
-The size information is hardcoded into the generated code and is known at compile time.
+Fixed length members are serialized directly into the buffer space without any additional metadata.
+Fixed size member have their size hardcoded into the generated code and is known at compile time, thus does not need to be written into the buffer.
 
 ## Variable length members
 
 Variable length members additionally encode at the beginning of their buffer space the number of bytes they occupy using a `uint64` value.
-If the variable length content possibly does not align to the 8 bytes word size, it is padded with zeros to the next multiple of 8 bytes.
-The number of padding bytes is encoded in the `uint64` value at the beginning of the buffer space in the high-order 3 bits.
+This number includes the number of bytes for the size metadata, not only the variable length content.
+If the variable length content possibly does not align to the 8 bytes word size, it is padded to the next multiple of 8 bytes.
+The number of padding bytes required to reach 8 bytes alignment (0-7) is encoded in the 8 high-order bits of the bytes size `uint64` value at the beginning of the buffer space.
 
-**Variable length size layout:**
+**Variable length size metadata layout:**
 
      high bits                                                               low bits
     +-----------------+---------------------+----------------------------------------+
@@ -145,3 +158,6 @@ The number of padding bytes is encoded in the `uint64` value at the beginning of
     +-----------------+---------------------+----------------------------------------+
 
 The 56 bits equal roughly 72 petabytes of variable length data, which should be sufficient for nearly all use cases.
+
+It is advisable, though not required, to define the variable-sized members at the end of the struct members in the schema.
+This allows to hardcode the buffer offsets of the fixed-size members in the generated code.
