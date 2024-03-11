@@ -94,13 +94,13 @@ JSON is preferred over other (prioprietary) schema formats because it is human-r
 
 ## Limitations
 
+- Storage buffer needs to be allocated by the user manually with sufficient size
+- Variable-sized members need to be set in order they appear in the schema
 - No support for pointers or references
 - No support for polymorphic types
 - No support for arrays of variable-sized structs
 - No support for unions
 - No support for circular references
-- Storage buffer needs to be allocated by the user manually with sufficient size
-- Variable-sized members need to be set in order they appear in the schema
 
 # Similar projects
 
