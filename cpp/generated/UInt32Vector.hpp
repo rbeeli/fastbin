@@ -32,6 +32,11 @@ struct UInt32Vector
     {
     }
 
+    explicit UInt32Vector(std::span<std::byte> buffer, bool owns_buffer) noexcept
+        : UInt32Vector(buffer.data(), buffer.size(), owns_buffer)
+    {
+    }
+
     ~UInt32Vector() noexcept
     {
         if (owns_buffer && buffer != nullptr)

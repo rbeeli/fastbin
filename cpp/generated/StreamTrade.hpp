@@ -39,6 +39,11 @@ struct StreamTrade
     {
     }
 
+    explicit StreamTrade(std::span<std::byte> buffer, bool owns_buffer) noexcept
+        : StreamTrade(buffer.data(), buffer.size(), owns_buffer)
+    {
+    }
+
     ~StreamTrade() noexcept
     {
         if (owns_buffer && buffer != nullptr)

@@ -32,6 +32,11 @@ struct StructVector
     {
     }
 
+    explicit StructVector(std::span<std::byte> buffer, bool owns_buffer) noexcept
+        : StructVector(buffer.data(), buffer.size(), owns_buffer)
+    {
+    }
+
     ~StructVector() noexcept
     {
         if (owns_buffer && buffer != nullptr)

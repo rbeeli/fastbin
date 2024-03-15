@@ -29,6 +29,11 @@ struct ChildFixed
     {
     }
 
+    explicit ChildFixed(std::span<std::byte> buffer, bool owns_buffer) noexcept
+        : ChildFixed(buffer.data(), buffer.size(), owns_buffer)
+    {
+    }
+
     ~ChildFixed() noexcept
     {
         if (owns_buffer && buffer != nullptr)

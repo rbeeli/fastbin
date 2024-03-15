@@ -33,6 +33,11 @@ struct ChildVar
     {
     }
 
+    explicit ChildVar(std::span<std::byte> buffer, bool owns_buffer) noexcept
+        : ChildVar(buffer.data(), buffer.size(), owns_buffer)
+    {
+    }
+
     ~ChildVar() noexcept
     {
         if (owns_buffer && buffer != nullptr)

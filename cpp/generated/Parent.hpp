@@ -35,6 +35,11 @@ struct Parent
     {
     }
 
+    explicit Parent(std::span<std::byte> buffer, bool owns_buffer) noexcept
+        : Parent(buffer.data(), buffer.size(), owns_buffer)
+    {
+    }
+
     ~Parent() noexcept
     {
         if (owns_buffer && buffer != nullptr)

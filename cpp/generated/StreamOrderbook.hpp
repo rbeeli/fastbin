@@ -38,6 +38,11 @@ struct StreamOrderbook
     {
     }
 
+    explicit StreamOrderbook(std::span<std::byte> buffer, bool owns_buffer) noexcept
+        : StreamOrderbook(buffer.data(), buffer.size(), owns_buffer)
+    {
+    }
+
     ~StreamOrderbook() noexcept
     {
         if (owns_buffer && buffer != nullptr)

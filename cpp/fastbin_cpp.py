@@ -650,6 +650,13 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     )
     code += "    {\n"
     code += "    }\n"
+    code += "\n"
+    code += f"    explicit {struct_def.name}(std::span<std::byte> buffer, bool owns_buffer) noexcept\n"
+    code += (
+        f"        : {struct_def.name}(buffer.data(), buffer.size(), owns_buffer)\n"
+    )
+    code += "    {\n"
+    code += "    }\n"
 
     # destructor
     code += "\n"
