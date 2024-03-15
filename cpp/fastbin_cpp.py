@@ -687,12 +687,15 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code += "    {\n"
     code += "        if (this != &other)\n"
     code += "        {\n"
-    code += "            delete[] buffer;\n"
+    code += "            if (owns_buffer && buffer != nullptr)\n"
+    code += "               delete[] buffer;\n"
     code += "            buffer = other.buffer;\n"
     code += "            buffer_size = other.buffer_size;\n"
     code += "            owns_buffer = other.owns_buffer;\n"
     code += "            other.buffer = nullptr;\n"
-    code += "            other.buffer_size = 0;\n        }\n"
+    code += "            other.buffer_size = 0;\n"
+    code += "            other.owns_buffer = false;\n"
+    code += "        }\n"
     code += "        return *this;\n    }\n"
 
     # binary size

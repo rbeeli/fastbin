@@ -58,12 +58,14 @@ struct ChildFixed
     {
         if (this != &other)
         {
-            delete[] buffer;
+            if (owns_buffer && buffer != nullptr)
+               delete[] buffer;
             buffer = other.buffer;
             buffer_size = other.buffer_size;
             owns_buffer = other.owns_buffer;
             other.buffer = nullptr;
             other.buffer_size = 0;
+            other.owns_buffer = false;
         }
         return *this;
     }
