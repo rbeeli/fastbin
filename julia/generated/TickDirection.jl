@@ -32,3 +32,12 @@ https://bybit-exchange.github.io/docs/v5/enum#tickdirection
     """
     ZeroMinusTick = 4
 end
+
+function from_string(::Type{TickDirection.T}, str::T) where T <: AbstractString
+    str == "Unknown" && return TickDirection.Unknown
+    str == "PlusTick" && return TickDirection.PlusTick
+    str == "ZeroPlusTick" && return TickDirection.ZeroPlusTick
+    str == "MinusTick" && return TickDirection.MinusTick
+    str == "ZeroMinusTick" && return TickDirection.ZeroMinusTick
+    throw(ArgumentError("Invalid string value for enum my_models.TickDirection: $str"))
+end

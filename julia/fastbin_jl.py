@@ -305,6 +305,12 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
     code += f"@enumx {enum_def.name}::{enum_def.storage_type_def.jl_type} begin\n"
     code += code_body
     code += "end\n"
+    code += "\n"
+    code += f"function from_string(::Type{{{enum_def.name}.T}}, str::T) where T <: AbstractString\n"
+    for i, (name, member_def) in enumerate(enum_def.members.items()):
+        code += f"    str == \"{name}\" && return {enum_def.name}.{name}\n"
+    code += f"    throw(ArgumentError(\"Invalid string value for enum {ctx.namespace}.{enum_def.name}: $str\"))\n"
+    code += "end\n"
 
     return code
 
