@@ -39,7 +39,7 @@ TEST(fastbin, ser_de_StreamOrderbook)
     ob.ask_quantities(std::span<double>(qtys.data(), qtys.size()));
     ob.fastbin_finalize();
 
-    EXPECT_EQ(ob.fastbin_binary_size(), ob.fastbin_compute_binary_size());
+    EXPECT_EQ(ob.fastbin_binary_size(), ob.fastbin_calc_binary_size());
     EXPECT_EQ(ob.type(), my_models::OrderbookType::Delta);
     EXPECT_EQ(ob.server_time(), 748949849849);
     EXPECT_EQ(ob.recv_time(), 748949849852);
@@ -65,7 +65,7 @@ TEST(fastbin, ser_de_StreamOrderbook)
     }
 
     EXPECT_EQ(
-        ob.fastbin_ask_quantities_offset() + ob.fastbin_ask_quantities_size(),
+        ob._ask_quantities_offset() + ob._ask_quantities_size_aligned(),
         ob.fastbin_binary_size()
     );
 
@@ -92,7 +92,7 @@ TEST(fastbin, ser_de_Nested)
 
     p.fastbin_finalize();
 
-    EXPECT_EQ(p.fastbin_binary_size(), p.fastbin_compute_binary_size());
+    EXPECT_EQ(p.fastbin_binary_size(), p.fastbin_calc_binary_size());
     EXPECT_EQ(p.field1(), 123);
     EXPECT_EQ(p.child1().field1(), 456);
     EXPECT_EQ(p.child1().field2(), 789);
@@ -116,8 +116,8 @@ TEST(fastbin, ser_de_UInt32Vector)
     v.fastbin_finalize();
 
     EXPECT_EQ(v.count(), count);
-    EXPECT_EQ(v.fastbin_binary_size(), v.fastbin_compute_binary_size());
-    EXPECT_EQ(v.fastbin_count_offset() + v.fastbin_count_size(), v.fastbin_binary_size());
+    EXPECT_EQ(v.fastbin_binary_size(), v.fastbin_calc_binary_size());
+    EXPECT_EQ(v._count_offset() + v._count_size_aligned(), v.fastbin_binary_size());
 
     EXPECT_NE(v.values().data(), reinterpret_cast<uint32_t*>(values.data()));
     EXPECT_EQ(v.values().size(), values.size());

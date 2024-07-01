@@ -1,5 +1,8 @@
+occursin("julia", pwd()) || cd("julia")
+
 include("generated/models.jl");
 
+using StringViews
 using .my_models
 
 function test_StreamTrade()
@@ -20,6 +23,11 @@ function test_StreamTrade()
     block_trade!(t, false)
 
     fastbin_finalize!(t)
+
+    @assert fastbin_calc_binary_size(
+        StreamTrade,
+        StringView("MNTUSDT"),
+        StringView("239f859d-d32b-577e-90bc-b1b0dbbb06e0")) == fastbin_binary_size(t)
 
     show(t)
 end
@@ -47,6 +55,14 @@ function test_StreamOrderbook()
 
     fastbin_finalize!(t)
 
+    @assert fastbin_calc_binary_size(
+        StreamOrderbook,
+        StringView("MNTUSDT"),
+        bid_prices(t),
+        bid_quantities(t),
+        ask_prices(t),
+        ask_quantities(t)) == fastbin_binary_size(t)
+
     show(t)
 end
 test_StreamOrderbook()
@@ -60,17 +76,19 @@ function test_UInt32Vector()
     vals::Vector{UInt32} = [i for i in 0:n_items-1]
     values!(v, vals)
     my_models.count!(v, n_items)
+
     fastbin_finalize!(v)
 
     @assert my_models.count(v) == n_items
     @assert all(my_models.values(v) .== vals)
-    @assert fastbin_binary_size(v) == fastbin_compute_binary_size(v)
-    @assert fastbin_count_offset(v) + fastbin_count_size(v) == fastbin_binary_size(v)
+    @assert fastbin_binary_size(v) == fastbin_calc_binary_size(v)
+    @assert _count_offset(v) + _count_size_aligned(v) == fastbin_binary_size(v)
+
+    @assert fastbin_calc_binary_size(UInt32Vector, vals) == fastbin_binary_size(v)
 
     show(v)
 end
 test_UInt32Vector()
-
 
 function test_StructVector()
     buffer_size::UInt64 = 1024
@@ -91,9 +109,11 @@ function test_StructVector()
     fastbin_finalize!(v)
 
     @assert my_models.count(v) == n_items
-    # @assert all(my_models.values(v) .== vals)
-    # @assert fastbin_binary_size(v) == fastbin_compute_binary_size(v)
-    # @assert fastbin_count_offset(v) + fastbin_count_size(v) == fastbin_binary_size(v)
+    @assert all(my_models.values(v) .== vals)
+    @assert fastbin_binary_size(v) == fastbin_calc_binary_size(v)
+    @assert _count_offset(v) + _count_size_aligned(v) == fastbin_binary_size(v)
+
+    @assert fastbin_calc_binary_size(StructVector, vals) == fastbin_binary_size(v)
 
     show(v)
 end
