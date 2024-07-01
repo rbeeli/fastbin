@@ -128,15 +128,19 @@ The object tree, as defined in the JSON schema, is serialized into a contiguous 
 The root object must be a schema-defined struct type.
 Each member of the struct is serialized into a contiguous memory buffer in the order they appear in the schema.
 
-Consequently, the order variable-sized members are set MUST match the order in the schema definition, e.g. for strings, vectors or variable-sized struct members.
+Consequently, the order in which variable-sized members are set MUST match the order in the schema definition, e.g. for strings, vectors or variable-sized struct members.
 
-The buffer is allocated by the user and needs to be large enough to hold the whole serialized object tree.
+The storage buffer needs to be allocated by the user and must to be large enough to hold the entire serialized struct and all its members.
 
 ## 64-bit word size and alignment
 
-Each member of a struct is aligned to 8 bytes (64-bit word size) in order to allow for efficient, direct access on 64-bit architectures.
+Each member of a struct is aligned to 8 bytes (64 bit word size) in order to allow for efficient, direct access on 64-bit architectures.
 Consequently, each member of a struct is padded to the next multiple of 8 bytes if necessary, possibly taking up more space than the member's native size (e.g. `bool`, `uint16`, etc.).
-This is done to ensure that the struct as a whole is aligned to 8 bytes, and each member can be accessed directly, which is important for performance reasons.
+This is done to ensure that the struct as a whole is aligned to 8 bytes as well, and each member can be accessed directly.
+
+Aligning to 8-byte boundaries can enhance performance by allowing the CPU to access memory more efficiently, reducing the likelihood of cache misses.
+On ARM architectures, the alignment of primitive types must be respected according to their size, or a multiple of their size, otherwise the CPU will throw an alignment fault.
+On x86 architectures, the alignment of primitive types is not strictly required, but it can still improve performance.
 
 ## Fixed length members
 
@@ -145,19 +149,20 @@ Fixed size member have their size hardcoded into the generated code and is known
 
 ## Variable length members
 
-Variable length members additionally encode at the beginning of their buffer space the number of bytes they occupy using a `uint64` value.
-This number includes the number of bytes for the size metadata, not only the variable length content.
-If the variable length content possibly does not align to the 8 bytes word size, it is padded to the next multiple of 8 bytes.
-The number of padding bytes required to reach 8 bytes alignment (0-7) is encoded in the 8 high-order bits of the bytes size `uint64` value at the beginning of the buffer space.
+Variable length members additionally encode the number of bytes they occupy using a `uint64` value at the beginning of their buffer space.
+This number includes the number of bytes the `uint64` value occupies, not just number of bytes of the member's data.
+
+If the member's data does not align to 8 bytes, padding is added to reach the next multiple of 8 bytes.
+The number of added padding bytes (0-7) is encoded in the 8 high-order bits of the `uint64` size value at the beginning of the buffer space.
 
 **Variable length size metadata layout:**
 
-     high bits                                                               low bits
-    +-----------------+---------------------+----------------------------------------+
-    | 5 reserved bits | 3 padding size bits |                      56 data size bits |
-    +-----------------+---------------------+----------------------------------------+
+    high bits                                                                       low bits
+    +----------------------+-----------------+---------------------------------------------+
+    | 5 reserved bits      | 3 pad size bits |                         56 member size bits |
+    +----------------------+-----------------+---------------------------------------------+
 
-The 56 bits equal roughly 72 petabytes of variable length data, which should be sufficient for nearly all use cases.
+The 56 bits for encoding the member size equal roughly 72 petabytes, which should be sufficient for all use cases.
 
 It is advisable, though not required, to define the variable-sized members at the end of the struct members in the schema.
-This allows to hardcode the buffer offsets of the fixed-size members in the generated code.
+This allows to hardcode the buffer offsets of all fixed-size members in the generated code, since they do not depend on the size of preceding variable-sized members.
