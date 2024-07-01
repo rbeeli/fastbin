@@ -21,18 +21,18 @@ namespace my_models
  * This container has variable size.
  * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.
  *
- * Fields in order
- * ===============
- * - `server_time::std::int64_t` (fixed)
- * - `recv_time::std::int64_t` (fixed)
- * - `symbol::std::string_view` (variable)
- * - `fill_time::std::int64_t` (fixed)
- * - `side::TradeSide`        (fixed)
- * - `price::double`          (fixed)
- * - `price_chg_dir::TickDirection` (fixed)
- * - `size::double`           (fixed)
- * - `trade_id::std::string_view` (variable)
- * - `block_trade::bool`      (fixed)
+ * Members in order
+ * ================
+ * - `server_time` [`std::int64_t`] (fixed)
+ * - `recv_time` [`std::int64_t`] (fixed)
+ * - `symbol` [`std::string_view`] (variable)
+ * - `fill_time` [`std::int64_t`] (fixed)
+ * - `side` [`TradeSide`]     (fixed)
+ * - `price` [`double`]       (fixed)
+ * - `price_chg_dir` [`TickDirection`] (fixed)
+ * - `size` [`double`]        (fixed)
+ * - `trade_id` [`std::string_view`] (variable)
+ * - `block_trade` [`bool`]   (fixed)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
@@ -91,7 +91,7 @@ struct StreamTrade
         return *this;
     }
 
-    // Field: server_time [std::int64_t]
+    // Member: server_time [std::int64_t]
 
     inline std::int64_t server_time() const noexcept
     {
@@ -113,7 +113,7 @@ struct StreamTrade
         return 8;
     }
 
-    // Field: recv_time [std::int64_t]
+    // Member: recv_time [std::int64_t]
 
     inline std::int64_t recv_time() const noexcept
     {
@@ -135,7 +135,7 @@ struct StreamTrade
         return 8;
     }
 
-    // Field: symbol [std::string_view]
+    // Member: symbol [std::string_view]
 
     inline std::string_view symbol() const noexcept
     {
@@ -179,7 +179,7 @@ struct StreamTrade
         return aligned_size - aligned_diff;
     }
 
-    // Field: fill_time [std::int64_t]
+    // Member: fill_time [std::int64_t]
 
     inline std::int64_t fill_time() const noexcept
     {
@@ -201,7 +201,7 @@ struct StreamTrade
         return 8;
     }
 
-    // Field: side [TradeSide]
+    // Member: side [TradeSide]
 
     inline TradeSide side() const noexcept
     {
@@ -223,7 +223,7 @@ struct StreamTrade
         return 8;
     }
 
-    // Field: price [double]
+    // Member: price [double]
 
     inline double price() const noexcept
     {
@@ -245,7 +245,7 @@ struct StreamTrade
         return 8;
     }
 
-    // Field: price_chg_dir [TickDirection]
+    // Member: price_chg_dir [TickDirection]
 
     inline TickDirection price_chg_dir() const noexcept
     {
@@ -267,7 +267,7 @@ struct StreamTrade
         return 8;
     }
 
-    // Field: size [double]
+    // Member: size [double]
 
     inline double size() const noexcept
     {
@@ -289,7 +289,7 @@ struct StreamTrade
         return 8;
     }
 
-    // Field: trade_id [std::string_view]
+    // Member: trade_id [std::string_view]
 
     inline std::string_view trade_id() const noexcept
     {
@@ -333,7 +333,7 @@ struct StreamTrade
         return aligned_size - aligned_diff;
     }
 
-    // Field: block_trade [bool]
+    // Member: block_trade [bool]
 
     inline bool block_trade() const noexcept
     {

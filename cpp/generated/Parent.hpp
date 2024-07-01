@@ -17,12 +17,12 @@ namespace my_models
  * This container has variable size.
  * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.
  *
- * Fields in order
- * ===============
- * - `field1::std::int32_t`   (fixed)
- * - `child1::ChildFixed`     (fixed)
- * - `child2::ChildVar`       (variable)
- * - `str::std::string_view`  (variable)
+ * Members in order
+ * ================
+ * - `field1` [`std::int32_t`] (fixed)
+ * - `child1` [`ChildFixed`]  (fixed)
+ * - `child2` [`ChildVar`]    (variable)
+ * - `str` [`std::string_view`] (variable)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
@@ -81,7 +81,7 @@ struct Parent
         return *this;
     }
 
-    // Field: field1 [std::int32_t]
+    // Member: field1 [std::int32_t]
 
     inline std::int32_t field1() const noexcept
     {
@@ -103,7 +103,7 @@ struct Parent
         return 8;
     }
 
-    // Field: child1 [ChildFixed]
+    // Member: child1 [ChildFixed]
 
     inline ChildFixed child1() const noexcept
     {
@@ -113,7 +113,7 @@ struct Parent
 
     inline void child1(const ChildFixed& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct ChildFixed not finalized, call fastbin_finalize() on struct after creation.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set member `child1`, parameter struct of type `ChildFixed` not finalized. Call fastbin_finalize() on struct after creation.");
         size_t offset = _child1_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, buffer + offset);
@@ -129,7 +129,7 @@ struct Parent
         return 16;
     }
 
-    // Field: child2 [ChildVar]
+    // Member: child2 [ChildVar]
 
     inline ChildVar child2() const noexcept
     {
@@ -139,7 +139,7 @@ struct Parent
 
     inline void child2(const ChildVar& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct ChildVar not finalized, call fastbin_finalize() on struct after creation.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set member `child2`, parameter struct of type `ChildVar` not finalized. Call fastbin_finalize() on struct after creation.");
         size_t offset = _child2_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, buffer + offset);
@@ -155,7 +155,7 @@ struct Parent
         return *reinterpret_cast<size_t*>(buffer + _child2_offset());
     }
 
-    // Field: str [std::string_view]
+    // Member: str [std::string_view]
 
     inline std::string_view str() const noexcept
     {

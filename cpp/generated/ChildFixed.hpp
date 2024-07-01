@@ -70,7 +70,7 @@ struct ChildFixed
         return *this;
     }
 
-    // Field: field1 [std::int32_t]
+    // Member: field1 [std::int32_t]
 
     inline std::int32_t field1() const noexcept
     {
@@ -92,7 +92,7 @@ struct ChildFixed
         return 8;
     }
 
-    // Field: field2 [std::int32_t]
+    // Member: field2 [std::int32_t]
 
     inline std::int32_t field2() const noexcept
     {

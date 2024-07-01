@@ -14,10 +14,10 @@ namespace my_models
  * This container has variable size.
  * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.
  *
- * Fields in order
- * ===============
- * - `values::std::span<ChildFixed>` (variable)
- * - `count::std::uint32_t`   (fixed)
+ * Members in order
+ * ================
+ * - `values` [`std::span<ChildFixed>`] (variable)
+ * - `count` [`std::uint32_t`] (fixed)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
@@ -76,7 +76,7 @@ struct StructVector
         return *this;
     }
 
-    // Field: values [std::span<ChildFixed>]
+    // Member: values [std::span<ChildFixed>]
 
     inline std::span<ChildFixed> values() const noexcept
     {
@@ -113,7 +113,7 @@ struct StructVector
         return stored_size;
     }
 
-    // Field: count [std::uint32_t]
+    // Member: count [std::uint32_t]
 
     inline std::uint32_t count() const noexcept
     {

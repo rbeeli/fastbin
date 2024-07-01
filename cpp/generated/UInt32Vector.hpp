@@ -14,10 +14,10 @@ namespace my_models
  * This container has variable size.
  * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.
  *
- * Fields in order
- * ===============
- * - `values::std::span<std::uint32_t>` (variable)
- * - `count::std::uint32_t`   (fixed)
+ * Members in order
+ * ================
+ * - `values` [`std::span<std::uint32_t>`] (variable)
+ * - `count` [`std::uint32_t`] (fixed)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
@@ -76,7 +76,7 @@ struct UInt32Vector
         return *this;
     }
 
-    // Field: values [std::span<std::uint32_t>]
+    // Member: values [std::span<std::uint32_t>]
 
     inline std::span<std::uint32_t> values() const noexcept
     {
@@ -120,7 +120,7 @@ struct UInt32Vector
         return aligned_size - aligned_diff;
     }
 
-    // Field: count [std::uint32_t]
+    // Member: count [std::uint32_t]
 
     inline std::uint32_t count() const noexcept
     {

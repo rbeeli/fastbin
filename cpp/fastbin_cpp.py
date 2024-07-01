@@ -446,7 +446,7 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
         code += f"        std::copy(src_ptr, src_ptr + contents_size, dest_ptr);\n"
     elif type_def.category == "s":
         # struct
-        code = f'        assert(value.fastbin_binary_size() > 0 && "Cannot set struct value, struct {lang_type} not finalized, call fastbin_finalize() on struct after creation.");\n'
+        code = f'        assert(value.fastbin_binary_size() > 0 && "Cannot set member `{member_def.name}`, parameter struct of type `{lang_type}` not finalized. Call fastbin_finalize() on struct after creation.");\n'
         code += f"        size_t offset = {prefix}{member_def.name}_offset();\n"
         code += f"        size_t size = value.fastbin_binary_size();\n"
         code += (
@@ -564,7 +564,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     # generate member functions (get, set, size, offset)
     code_body = ""
     for i, (name, member_def) in enumerate(struct_def.members.items()):
-        code_body += f"\n    // Field: {name} [{member_def.type_def.lang_type}]\n"
+        code_body += f"\n    // Member: {name} [{member_def.type_def.lang_type}]\n"
         type_def = member_def.type_def
         
         # getter
@@ -641,10 +641,10 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code += " * This container has variable size.\n"
         code += " * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.\n"
         code += " *\n"
-        code += " * Fields in order\n"
-        code += " * ===============\n"
+        code += " * Members in order\n"
+        code += " * ================\n"
         for i, (name, member_def) in enumerate(struct_def.members.items()):
-            name_type = '`' + name + "::" + member_def.type_def.lang_type + '`'
+            name_type = '`' + name + "` [`" + member_def.type_def.lang_type + '`]'
             code += f" * - {name_type.ljust(24)} ({'variable' if member_def.type_def.variable_length else 'fixed'})\n"
         code += " *\n"
     else:

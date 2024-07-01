@@ -425,7 +425,7 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
         code += f"    unsafe_copyto!(dest_ptr, src_ptr, contents_size)\n"
     elif type_def.category == "s":
         # struct
-        code = f'    @assert binary_size(value) > 0 "Cannot set field `{member_def.name}`, parameter struct of type `{lang_type}` not finalized. Call fastbin_finalize!(obj) on struct after creation."\n'
+        code = f'    @assert binary_size(value) > 0 "Cannot set member `{member_def.name}`, parameter struct of type `{lang_type}` not finalized. Call fastbin_finalize!(obj) on struct after creation."\n'
         code += f"    offset::UInt64 = {prefix}{member_def.name}_offset(obj)\n"
         code += f"    size::UInt64 = binary_size(value)\n"
         code += f"    unsafe_copyto!(obj.buffer + offset, value.buffer, size)\n"
@@ -518,7 +518,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     # generate member functions (get, set, size, offset)
     code_body = ""
     for i, (name, member_def) in enumerate(struct_def.members.items()):
-        code_body += f"\n# Field: {name}::{member_def.type_def.lang_type}\n"
+        code_body += f"\n# Member: {name}::{member_def.type_def.lang_type}\n"
         type_def = member_def.type_def
         
         # getter
@@ -594,8 +594,8 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     if struct_def.type_def.variable_length:
         code += "This container has variable size.\n"
         code += "All setter methods starting from the first variable-sized member and afterwards MUST be called in order.\n\n"
-        code += "Fields in order\n"
-        code += "===============\n"
+        code += "Members in order\n"
+        code += "================\n"
         for i, (name, member_def) in enumerate(struct_def.members.items()):
             name_type = '`' + name + "::" + member_def.type_def.lang_type + '`'
             code += f"- {name_type.ljust(24)} ({'variable' if member_def.type_def.variable_length else 'fixed'})\n"

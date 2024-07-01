@@ -20,20 +20,20 @@ namespace my_models
  * This container has variable size.
  * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.
  *
- * Fields in order
- * ===============
- * - `server_time::std::int64_t` (fixed)
- * - `recv_time::std::int64_t` (fixed)
- * - `cts::std::int64_t`      (fixed)
- * - `type::OrderbookType`    (fixed)
- * - `depth::std::uint16_t`   (fixed)
- * - `symbol::std::string_view` (variable)
- * - `update_id::std::uint64_t` (fixed)
- * - `seq_num::std::uint64_t` (fixed)
- * - `bid_prices::std::span<double>` (variable)
- * - `bid_quantities::std::span<double>` (variable)
- * - `ask_prices::std::span<double>` (variable)
- * - `ask_quantities::std::span<double>` (variable)
+ * Members in order
+ * ================
+ * - `server_time` [`std::int64_t`] (fixed)
+ * - `recv_time` [`std::int64_t`] (fixed)
+ * - `cts` [`std::int64_t`]   (fixed)
+ * - `type` [`OrderbookType`] (fixed)
+ * - `depth` [`std::uint16_t`] (fixed)
+ * - `symbol` [`std::string_view`] (variable)
+ * - `update_id` [`std::uint64_t`] (fixed)
+ * - `seq_num` [`std::uint64_t`] (fixed)
+ * - `bid_prices` [`std::span<double>`] (variable)
+ * - `bid_quantities` [`std::span<double>`] (variable)
+ * - `ask_prices` [`std::span<double>`] (variable)
+ * - `ask_quantities` [`std::span<double>`] (variable)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
@@ -92,7 +92,7 @@ struct StreamOrderbook
         return *this;
     }
 
-    // Field: server_time [std::int64_t]
+    // Member: server_time [std::int64_t]
 
     inline std::int64_t server_time() const noexcept
     {
@@ -114,7 +114,7 @@ struct StreamOrderbook
         return 8;
     }
 
-    // Field: recv_time [std::int64_t]
+    // Member: recv_time [std::int64_t]
 
     inline std::int64_t recv_time() const noexcept
     {
@@ -136,7 +136,7 @@ struct StreamOrderbook
         return 8;
     }
 
-    // Field: cts [std::int64_t]
+    // Member: cts [std::int64_t]
 
     inline std::int64_t cts() const noexcept
     {
@@ -158,7 +158,7 @@ struct StreamOrderbook
         return 8;
     }
 
-    // Field: type [OrderbookType]
+    // Member: type [OrderbookType]
 
     inline OrderbookType type() const noexcept
     {
@@ -180,7 +180,7 @@ struct StreamOrderbook
         return 8;
     }
 
-    // Field: depth [std::uint16_t]
+    // Member: depth [std::uint16_t]
 
     inline std::uint16_t depth() const noexcept
     {
@@ -202,7 +202,7 @@ struct StreamOrderbook
         return 8;
     }
 
-    // Field: symbol [std::string_view]
+    // Member: symbol [std::string_view]
 
     inline std::string_view symbol() const noexcept
     {
@@ -246,7 +246,7 @@ struct StreamOrderbook
         return aligned_size - aligned_diff;
     }
 
-    // Field: update_id [std::uint64_t]
+    // Member: update_id [std::uint64_t]
 
     inline std::uint64_t update_id() const noexcept
     {
@@ -268,7 +268,7 @@ struct StreamOrderbook
         return 8;
     }
 
-    // Field: seq_num [std::uint64_t]
+    // Member: seq_num [std::uint64_t]
 
     inline std::uint64_t seq_num() const noexcept
     {
@@ -290,7 +290,7 @@ struct StreamOrderbook
         return 8;
     }
 
-    // Field: bid_prices [std::span<double>]
+    // Member: bid_prices [std::span<double>]
 
     inline std::span<double> bid_prices() const noexcept
     {
@@ -327,7 +327,7 @@ struct StreamOrderbook
         return stored_size;
     }
 
-    // Field: bid_quantities [std::span<double>]
+    // Member: bid_quantities [std::span<double>]
 
     inline std::span<double> bid_quantities() const noexcept
     {
@@ -364,7 +364,7 @@ struct StreamOrderbook
         return stored_size;
     }
 
-    // Field: ask_prices [std::span<double>]
+    // Member: ask_prices [std::span<double>]
 
     inline std::span<double> ask_prices() const noexcept
     {
@@ -401,7 +401,7 @@ struct StreamOrderbook
         return stored_size;
     }
 
-    // Field: ask_quantities [std::span<double>]
+    // Member: ask_quantities [std::span<double>]
 
     inline std::span<double> ask_quantities() const noexcept
     {

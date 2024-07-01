@@ -15,10 +15,10 @@ namespace my_models
  * This container has variable size.
  * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.
  *
- * Fields in order
- * ===============
- * - `field1::std::int32_t`   (fixed)
- * - `field2::std::string_view` (variable)
+ * Members in order
+ * ================
+ * - `field1` [`std::int32_t`] (fixed)
+ * - `field2` [`std::string_view`] (variable)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
@@ -77,7 +77,7 @@ struct ChildVar
         return *this;
     }
 
-    // Field: field1 [std::int32_t]
+    // Member: field1 [std::int32_t]
 
     inline std::int32_t field1() const noexcept
     {
@@ -99,7 +99,7 @@ struct ChildVar
         return 8;
     }
 
-    // Field: field2 [std::string_view]
+    // Member: field2 [std::string_view]
 
     inline std::string_view field2() const noexcept
     {

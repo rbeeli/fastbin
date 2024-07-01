@@ -34,7 +34,7 @@ function Base.finalizer(obj::ChildFixed)
     nothing
 end
 
-# Field: field1::Int32
+# Member: field1::Int32
 
 @inline function field1(obj::ChildFixed)::Int32
     return unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)))
@@ -57,7 +57,7 @@ end
 end
 
 
-# Field: field2::Int32
+# Member: field2::Int32
 
 @inline function field2(obj::ChildFixed)::Int32
     return unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + _field2_offset(obj)))
