@@ -22,17 +22,13 @@ mutable struct ChildFixed
 
     function ChildFixed(buffer_size::Integer)
         buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
-        new(buffer, buffer_size, true)
+        obj = new(buffer, buffer_size, true)
+        finalizer(_finalize!, obj)
     end
 end
 
-function Base.finalizer(obj::ChildFixed)
-    if obj.owns_buffer && obj.buffer != C_NULL
-        Base.Libc.free(obj.buffer)
-        obj.buffer = C_NULL
-    end
-    nothing
-end
+_finalize!(obj::ChildFixed) = Base.Libc.free(obj.buffer)
+
 
 # Member: field1::Int32
 

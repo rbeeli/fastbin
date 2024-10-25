@@ -613,7 +613,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code += "    buffer_size::UInt64\n"
     code += "    owns_buffer::Bool\n"
 
-    # constructor
+    # constructors
     code += "\n"
     code += f"    function {struct_def.name}(buffer::Ptr{{UInt8}}, buffer_size::UInt64, owns_buffer::Bool)\n"
     code += "        new(buffer, buffer_size, owns_buffer)\n"
@@ -621,20 +621,16 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code += "\n"
     code += f"    function {struct_def.name}(buffer_size::Integer)\n"
     code += "        buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))\n"
-    code += "        new(buffer, buffer_size, true)\n"
+    code += "        obj = new(buffer, buffer_size, true)\n"
+    code += "        finalizer(_finalize!, obj)\n"
     code += "    end\n"
 
     code += "end\n"
 
     # finalizer (called by garbage collector)
     code += "\n"
-    code += f"function Base.finalizer(obj::{struct_def.name})\n"
-    code += "    if obj.owns_buffer && obj.buffer != C_NULL\n"
-    code += "        Base.Libc.free(obj.buffer)\n"
-    code += "        obj.buffer = C_NULL\n"
-    code += "    end\n"
-    code += "    nothing\n"
-    code += "end\n"
+    code += f"_finalize!(obj::{struct_def.name}) = Base.Libc.free(obj.buffer)\n"
+    code += "\n"
 
     # member functions
     code += code_body
