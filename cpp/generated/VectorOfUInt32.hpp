@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
 #include <cassert>
 #include <ostream>
 #include <span>
-#include <cstdint>
+#include <string_view>
+#include "_traits.hpp"
 
 namespace my_models
 {
@@ -17,30 +19,52 @@ namespace my_models
  * Members in order
  * ================
  * - `values` [`std::span<std::uint32_t>`] (variable)
- * - `count` [`std::uint32_t`] (fixed)
+ * - `str` [`std::string_view`] (variable)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-struct UInt32Vector
+class VectorOfUInt32 final
 {
+public:
     std::byte* buffer{nullptr};
     size_t buffer_size{0};
     bool owns_buffer{false};
 
-    explicit UInt32Vector(std::byte* buffer, size_t binary_size, bool owns_buffer) noexcept
-        : buffer(buffer), buffer_size(binary_size), owns_buffer(owns_buffer)
+private:
+    VectorOfUInt32(
+        std::byte* buffer, size_t buffer_size, bool owns_buffer
+    ) noexcept
+        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
     {
     }
 
-    explicit UInt32Vector(std::span<std::byte> buffer, bool owns_buffer) noexcept
-        : UInt32Vector(buffer.data(), buffer.size(), owns_buffer)
+public:
+    static VectorOfUInt32 create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
+        std::memset(buffer, 0, buffer_size);
+        return {buffer, buffer_size, owns_buffer};
     }
 
-    ~UInt32Vector() noexcept
+    static VectorOfUInt32 create(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return create(buffer.data(), buffer.size(), owns_buffer);
+    }
+
+    static VectorOfUInt32 open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    {
+        return {buffer, buffer_size, owns_buffer};
+    }
+    
+    static VectorOfUInt32 open(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return VectorOfUInt32(buffer.data(), buffer.size(), owns_buffer);
+    }
+    
+    // destructor
+    ~VectorOfUInt32() noexcept
     {
         if (owns_buffer && buffer != nullptr)
         {
@@ -50,17 +74,17 @@ struct UInt32Vector
     }
 
     // disable copy
-    UInt32Vector(const UInt32Vector&) = delete;
-    UInt32Vector& operator=(const UInt32Vector&) = delete;
+    VectorOfUInt32(const VectorOfUInt32&) = delete;
+    VectorOfUInt32& operator=(const VectorOfUInt32&) = delete;
 
     // enable move
-    UInt32Vector(UInt32Vector&& other) noexcept
+    VectorOfUInt32(VectorOfUInt32&& other) noexcept
         : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
     {
         other.buffer = nullptr;
         other.buffer_size = 0;
     }
-    UInt32Vector& operator=(UInt32Vector&& other) noexcept
+    VectorOfUInt32& operator=(VectorOfUInt32&& other) noexcept
     {
         if (this != &other)
         {
@@ -81,7 +105,7 @@ struct UInt32Vector
     inline std::span<std::uint32_t> values() const noexcept
     {
         size_t n_bytes = _values_size_unaligned() - 8;
-        size_t count = n_bytes >> 2;
+        size_t count = n_bytes / 4;
         auto ptr = reinterpret_cast<std::uint32_t*>(buffer + _values_offset() + 8);
         return std::span<std::uint32_t>(ptr, count);
     }
@@ -112,6 +136,13 @@ struct UInt32Vector
         return aligned_size;
     }
 
+    static size_t _values_calc_size_aligned(const std::span<std::uint32_t>& value)
+    {
+        size_t contents_size = value.size() * 4;
+        size_t unaligned_size = 8 + contents_size;
+        return (unaligned_size + 7) & ~7;
+    }
+
     constexpr inline size_t _values_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _values_offset());
@@ -120,33 +151,70 @@ struct UInt32Vector
         return aligned_size - aligned_diff;
     }
 
-    // Member: count [std::uint32_t]
+    // Member: str [std::string_view]
 
-    inline std::uint32_t count() const noexcept
+    inline std::string_view str() const noexcept
     {
-        return *reinterpret_cast<const std::uint32_t*>(buffer + _count_offset());
+        size_t n_bytes = _str_size_unaligned() - 8;
+        auto ptr = reinterpret_cast<const char*>(buffer + _str_offset() + 8);
+        return std::string_view(ptr, n_bytes);
     }
 
-    inline void count(const std::uint32_t value) noexcept
+    inline void str(const std::string_view value) noexcept
     {
-        *reinterpret_cast<std::uint32_t*>(buffer + _count_offset()) = value;
+        size_t offset = _str_offset();
+        size_t contents_size = value.size() * 1;
+        size_t unaligned_size = 8 + contents_size;
+        size_t aligned_size = (unaligned_size + 7) & ~7;
+        size_t aligned_diff = aligned_size - unaligned_size;
+        size_t aligned_size_high = aligned_size | (aligned_diff << 56);
+        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
+        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
+        std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
     }
 
-    constexpr inline size_t _count_offset() const noexcept
+    constexpr inline size_t _str_offset() const noexcept
     {
         return _values_offset() + _values_size_aligned();
     }
 
-    constexpr inline size_t _count_size_aligned() const noexcept
+    constexpr inline size_t _str_size_aligned() const noexcept
     {
-        return 8;
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
+        size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        return aligned_size;
+    }
+
+    static size_t _str_calc_size_aligned(const std::string_view& value)
+    {
+        size_t contents_size = value.size() * 1;
+        size_t unaligned_size = 8 + contents_size;
+        return (unaligned_size + 7) & ~7;
+    }
+
+    constexpr inline size_t _str_size_unaligned() const noexcept
+    {
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
+        size_t aligned_diff = stored_size >> 56;
+        size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        return aligned_size - aligned_diff;
     }
 
     // --------------------------------------------------------------------------------
 
     constexpr inline size_t fastbin_calc_binary_size() const noexcept
     {
-        return _count_offset() + _count_size_aligned();
+        return _str_offset() + _str_size_aligned();
+    }
+
+    static size_t fastbin_calc_binary_size(
+        const std::span<std::uint32_t>& values,
+        const std::string_view& str
+    )
+    {
+        return 8 + _values_calc_size_aligned(values) +
+            _str_calc_size_aligned(str);
     }
 
     /**
@@ -163,17 +231,24 @@ struct UInt32Vector
      * After calling this function, the underlying buffer can be used for serialization.
      * To get the actual buffer size, call `fastbin_binary_size()`.
      */
-    inline void fastbin_finalize() const noexcept
+    inline void fastbin_finalize() noexcept
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
 };
+
+// Type traits
+template <>
+struct is_variable_size<VectorOfUInt32>
+{
+    static constexpr bool value = true;
+};
 }; // namespace my_models
 
-inline std::ostream& operator<<(std::ostream& os, const my_models::UInt32Vector& obj)
+inline std::ostream& operator<<(std::ostream& os, const my_models::VectorOfUInt32& obj)
 {
-    os << "[my_models::UInt32Vector size=" << obj.fastbin_binary_size() << " bytes]\n";
+    os << "[my_models::VectorOfUInt32 size=" << obj.fastbin_binary_size() << " bytes]\n";
     os << "    values: " << "[vector<uint32> count=" << obj.values().size() << "]" << "\n";
-    os << "    count: " << obj.count() << "\n";
+    os << "    str: " << std::string(obj.str()) << "\n";
     return os;
 }

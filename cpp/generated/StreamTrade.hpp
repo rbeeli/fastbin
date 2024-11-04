@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
 #include <cassert>
 #include <ostream>
 #include <span>
 #include <cstdint>
 #include <string_view>
+#include "_traits.hpp"
 #include "TradeSide.hpp"
 #include "TickDirection.hpp"
 
@@ -39,22 +41,44 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-struct StreamTrade
+class StreamTrade final
 {
+public:
     std::byte* buffer{nullptr};
     size_t buffer_size{0};
     bool owns_buffer{false};
 
-    explicit StreamTrade(std::byte* buffer, size_t binary_size, bool owns_buffer) noexcept
-        : buffer(buffer), buffer_size(binary_size), owns_buffer(owns_buffer)
+private:
+    StreamTrade(
+        std::byte* buffer, size_t buffer_size, bool owns_buffer
+    ) noexcept
+        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
     {
     }
 
-    explicit StreamTrade(std::span<std::byte> buffer, bool owns_buffer) noexcept
-        : StreamTrade(buffer.data(), buffer.size(), owns_buffer)
+public:
+    static StreamTrade create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
+        std::memset(buffer, 0, buffer_size);
+        return {buffer, buffer_size, owns_buffer};
     }
 
+    static StreamTrade create(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return create(buffer.data(), buffer.size(), owns_buffer);
+    }
+
+    static StreamTrade open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    {
+        return {buffer, buffer_size, owns_buffer};
+    }
+    
+    static StreamTrade open(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return StreamTrade(buffer.data(), buffer.size(), owns_buffer);
+    }
+    
+    // destructor
     ~StreamTrade() noexcept
     {
         if (owns_buffer && buffer != nullptr)
@@ -113,6 +137,12 @@ struct StreamTrade
         return 8;
     }
 
+    static size_t _server_time_calc_size_aligned(const std::int64_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: recv_time [std::int64_t]
 
     inline std::int64_t recv_time() const noexcept
@@ -135,14 +165,19 @@ struct StreamTrade
         return 8;
     }
 
+    static size_t _recv_time_calc_size_aligned(const std::int64_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: symbol [std::string_view]
 
     inline std::string_view symbol() const noexcept
     {
         size_t n_bytes = _symbol_size_unaligned() - 8;
-        size_t count = n_bytes;
         auto ptr = reinterpret_cast<const char*>(buffer + _symbol_offset() + 8);
-        return std::string_view(ptr, count);
+        return std::string_view(ptr, n_bytes);
     }
 
     inline void symbol(const std::string_view value) noexcept
@@ -169,6 +204,13 @@ struct StreamTrade
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
+    }
+
+    static size_t _symbol_calc_size_aligned(const std::string_view& value)
+    {
+        size_t contents_size = value.size() * 1;
+        size_t unaligned_size = 8 + contents_size;
+        return (unaligned_size + 7) & ~7;
     }
 
     constexpr inline size_t _symbol_size_unaligned() const noexcept
@@ -201,6 +243,12 @@ struct StreamTrade
         return 8;
     }
 
+    static size_t _fill_time_calc_size_aligned(const std::int64_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: side [TradeSide]
 
     inline TradeSide side() const noexcept
@@ -222,6 +270,12 @@ struct StreamTrade
     {
         return 8;
     }
+
+    static size_t _side_calc_size_aligned(const TradeSide& value)
+    {
+        return 8;
+    }
+
 
     // Member: price [double]
 
@@ -245,6 +299,12 @@ struct StreamTrade
         return 8;
     }
 
+    static size_t _price_calc_size_aligned(const double& value)
+    {
+        return 8;
+    }
+
+
     // Member: price_chg_dir [TickDirection]
 
     inline TickDirection price_chg_dir() const noexcept
@@ -266,6 +326,12 @@ struct StreamTrade
     {
         return 8;
     }
+
+    static size_t _price_chg_dir_calc_size_aligned(const TickDirection& value)
+    {
+        return 8;
+    }
+
 
     // Member: size [double]
 
@@ -289,14 +355,19 @@ struct StreamTrade
         return 8;
     }
 
+    static size_t _size_calc_size_aligned(const double& value)
+    {
+        return 8;
+    }
+
+
     // Member: trade_id [std::string_view]
 
     inline std::string_view trade_id() const noexcept
     {
         size_t n_bytes = _trade_id_size_unaligned() - 8;
-        size_t count = n_bytes;
         auto ptr = reinterpret_cast<const char*>(buffer + _trade_id_offset() + 8);
-        return std::string_view(ptr, count);
+        return std::string_view(ptr, n_bytes);
     }
 
     inline void trade_id(const std::string_view value) noexcept
@@ -323,6 +394,13 @@ struct StreamTrade
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _trade_id_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
+    }
+
+    static size_t _trade_id_calc_size_aligned(const std::string_view& value)
+    {
+        size_t contents_size = value.size() * 1;
+        size_t unaligned_size = 8 + contents_size;
+        return (unaligned_size + 7) & ~7;
     }
 
     constexpr inline size_t _trade_id_size_unaligned() const noexcept
@@ -355,11 +433,26 @@ struct StreamTrade
         return 8;
     }
 
+    static size_t _block_trade_calc_size_aligned(const bool& value)
+    {
+        return 8;
+    }
+
+
     // --------------------------------------------------------------------------------
 
     constexpr inline size_t fastbin_calc_binary_size() const noexcept
     {
         return _block_trade_offset() + _block_trade_size_aligned();
+    }
+
+    static size_t fastbin_calc_binary_size(
+        const std::string_view& symbol,
+        const std::string_view& trade_id
+    )
+    {
+        return 72 + _symbol_calc_size_aligned(symbol) +
+            _trade_id_calc_size_aligned(trade_id);
     }
 
     /**
@@ -371,15 +464,27 @@ struct StreamTrade
         return *reinterpret_cast<size_t*>(buffer);
     }
 
+    static constexpr size_t fastbin_fixed_size() noexcept
+    {
+        return -1;
+    }
+
     /**
      * Finalizes the object by writing the binary size to the beginning of its buffer.
      * After calling this function, the underlying buffer can be used for serialization.
      * To get the actual buffer size, call `fastbin_binary_size()`.
      */
-    inline void fastbin_finalize() const noexcept
+    inline void fastbin_finalize() noexcept
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
+};
+
+// Type traits
+template <>
+struct is_variable_size<StreamTrade>
+{
+    static constexpr bool value = false;
 };
 }; // namespace my_models
 

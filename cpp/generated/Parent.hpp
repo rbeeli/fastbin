@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
 #include <cassert>
 #include <ostream>
 #include <span>
 #include <cstdint>
 #include <string_view>
+#include "_traits.hpp"
 #include "ChildFixed.hpp"
 #include "ChildVar.hpp"
 
@@ -29,22 +31,44 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-struct Parent
+class Parent final
 {
+public:
     std::byte* buffer{nullptr};
     size_t buffer_size{0};
     bool owns_buffer{false};
 
-    explicit Parent(std::byte* buffer, size_t binary_size, bool owns_buffer) noexcept
-        : buffer(buffer), buffer_size(binary_size), owns_buffer(owns_buffer)
+private:
+    Parent(
+        std::byte* buffer, size_t buffer_size, bool owns_buffer
+    ) noexcept
+        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
     {
     }
 
-    explicit Parent(std::span<std::byte> buffer, bool owns_buffer) noexcept
-        : Parent(buffer.data(), buffer.size(), owns_buffer)
+public:
+    static Parent create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
+        std::memset(buffer, 0, buffer_size);
+        return {buffer, buffer_size, owns_buffer};
     }
 
+    static Parent create(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return create(buffer.data(), buffer.size(), owns_buffer);
+    }
+
+    static Parent open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    {
+        return {buffer, buffer_size, owns_buffer};
+    }
+    
+    static Parent open(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return Parent(buffer.data(), buffer.size(), owns_buffer);
+    }
+    
+    // destructor
     ~Parent() noexcept
     {
         if (owns_buffer && buffer != nullptr)
@@ -103,20 +127,26 @@ struct Parent
         return 8;
     }
 
+    static size_t _field1_calc_size_aligned(const std::int32_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: child1 [ChildFixed]
 
     inline ChildFixed child1() const noexcept
     {
         auto ptr = buffer + _child1_offset();
-        return ChildFixed(ptr, _child1_size_aligned(), false);
+        return ChildFixed::open(ptr, _child1_size_aligned(), false);
     }
 
     inline void child1(const ChildFixed& value) noexcept
     {
         assert(value.fastbin_binary_size() > 0 && "Cannot set member `child1`, parameter struct of type `ChildFixed` not finalized. Call fastbin_finalize() on struct after creation.");
-        size_t offset = _child1_offset();
+        auto dest_ptr = buffer + _child1_offset();
         size_t size = value.fastbin_binary_size();
-        std::copy(value.buffer, value.buffer + size, buffer + offset);
+        std::copy(value.buffer, value.buffer + size, dest_ptr);
     }
 
     constexpr inline size_t _child1_offset() const noexcept
@@ -129,20 +159,26 @@ struct Parent
         return 16;
     }
 
+    static size_t _child1_calc_size_aligned(const ChildFixed& value)
+    {
+        return value.fastbin_binary_size();
+    }
+
+
     // Member: child2 [ChildVar]
 
     inline ChildVar child2() const noexcept
     {
         auto ptr = buffer + _child2_offset();
-        return ChildVar(ptr, _child2_size_aligned(), false);
+        return ChildVar::open(ptr, _child2_size_aligned(), false);
     }
 
     inline void child2(const ChildVar& value) noexcept
     {
         assert(value.fastbin_binary_size() > 0 && "Cannot set member `child2`, parameter struct of type `ChildVar` not finalized. Call fastbin_finalize() on struct after creation.");
-        size_t offset = _child2_offset();
+        auto dest_ptr = buffer + _child2_offset();
         size_t size = value.fastbin_binary_size();
-        std::copy(value.buffer, value.buffer + size, buffer + offset);
+        std::copy(value.buffer, value.buffer + size, dest_ptr);
     }
 
     constexpr inline size_t _child2_offset() const noexcept
@@ -155,14 +191,19 @@ struct Parent
         return *reinterpret_cast<size_t*>(buffer + _child2_offset());
     }
 
+    static size_t _child2_calc_size_aligned(const ChildVar& value)
+    {
+        return value.fastbin_binary_size();
+    }
+
+
     // Member: str [std::string_view]
 
     inline std::string_view str() const noexcept
     {
         size_t n_bytes = _str_size_unaligned() - 8;
-        size_t count = n_bytes;
         auto ptr = reinterpret_cast<const char*>(buffer + _str_offset() + 8);
-        return std::string_view(ptr, count);
+        return std::string_view(ptr, n_bytes);
     }
 
     inline void str(const std::string_view value) noexcept
@@ -191,6 +232,13 @@ struct Parent
         return aligned_size;
     }
 
+    static size_t _str_calc_size_aligned(const std::string_view& value)
+    {
+        size_t contents_size = value.size() * 1;
+        size_t unaligned_size = 8 + contents_size;
+        return (unaligned_size + 7) & ~7;
+    }
+
     constexpr inline size_t _str_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
@@ -204,6 +252,15 @@ struct Parent
     constexpr inline size_t fastbin_calc_binary_size() const noexcept
     {
         return _str_offset() + _str_size_aligned();
+    }
+
+    static size_t fastbin_calc_binary_size(
+        const ChildVar& child2,
+        const std::string_view& str
+    )
+    {
+        return 32 + _child2_calc_size_aligned(child2) +
+            _str_calc_size_aligned(str);
     }
 
     /**
@@ -220,10 +277,17 @@ struct Parent
      * After calling this function, the underlying buffer can be used for serialization.
      * To get the actual buffer size, call `fastbin_binary_size()`.
      */
-    inline void fastbin_finalize() const noexcept
+    inline void fastbin_finalize() noexcept
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
+};
+
+// Type traits
+template <>
+struct is_variable_size<Parent>
+{
+    static constexpr bool value = true;
 };
 }; // namespace my_models
 

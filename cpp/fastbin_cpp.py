@@ -146,9 +146,7 @@ class GenContext:
             "byte": TypeDef(
                 "p", "byte", "std::byte", "#include <cstddef>", 1, 8, False, True
             ),
-            "char": TypeDef(
-                "p", "char", "char", "", 1, 8, False, True
-            ),
+            "char": TypeDef("p", "char", "char", "", 1, 8, False, True),
             "float32": TypeDef(
                 "p", "float32", "float", "#include <cstddef>", 8, 8, False, True
             ),
@@ -274,20 +272,36 @@ class GenContext:
         if type_name.startswith("vector<"):
             el_type = type_name.split("<")[1].split(">")[0]
             el_type_def = self.get_type_def(el_type)
-            if el_type_def.variable_length:
-                # TODO Support variable length vectors?
-                raise ValueError(f"Vector element type '{el_type}' must be fixed size")
-            return TypeDef(
-                "c",
-                type_name,
-                f"std::span<{self.get_type_def(el_type).lang_type}>",
-                "#include <span>",
-                -1,
-                -1,
-                True,
-                False,
-                el_type_def,
-            )
+            if el_type_def.category == "p":
+                # vector of primitives
+                return TypeDef(
+                    "c",
+                    type_name,
+                    f"std::span<{self.get_type_def(el_type).lang_type}>",
+                    "#include <span>",
+                    -1,
+                    -1,
+                    True,
+                    False,
+                    el_type_def,
+                )
+            elif el_type_def.category == "s":
+                # vector of fixed or variable-sized structs
+                return TypeDef(
+                    "c",
+                    type_name,
+                    f"struct_array<{self.get_type_def(el_type).lang_type}>",
+                    '#include "_struct_array.hpp"',
+                    -1,
+                    -1,
+                    True,
+                    False,
+                    el_type_def,
+                )
+            else:
+                raise ValueError(
+                    f"Variable length container of type '{el_type}' not supported"
+                )
 
         raise ValueError(f"Unknown type: {type_name}")
 
@@ -380,33 +394,52 @@ def generate_get_member_body(ctx: GenContext, member_def: StructMemberDef):
     elif type_def.category == "s":
         # struct
         code = f"        auto ptr = buffer + {prefix}{member_def.name}_offset();\n"
-        code += f"        return {lang_type}(ptr, {prefix}{member_def.name}_size_aligned(), false);\n"
+        code += f"        return {lang_type}::open(ptr, {prefix}{member_def.name}_size_aligned(), false);\n"
     elif type_def.category == "c":
         # container with variable length (string, vector<T>)
         el_type_def = type_def.element_type_def
         el_type_cpp = el_type_def.lang_type
-        code = f"        size_t n_bytes = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
-        if el_type_def.native_size == 1:
-            code += f"        size_t count = n_bytes;\n"
-        elif el_type_def.native_size == 2:
-            # >> 1 is equal to dividing by 2
-            code += f"        size_t count = n_bytes >> 1;\n"
-        elif el_type_def.native_size == 4:
-            # >> 2 is equal to dividing by 4
-            code += f"        size_t count = n_bytes >> 2;\n"
-        elif el_type_def.native_size == 8:
-            # >> 3 is equal to dividing by 8
-            code += f"        size_t count = n_bytes >> 3;\n"
+        if el_type_def.category == "p":
+            # for primitive elements
+            if el_type_def.native_size == 1:
+                code = f"        size_t count = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
+            elif el_type_def.native_size == 2:
+                code = f"        size_t n_bytes = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
+                # >> 1 is equal to dividing by 2
+                code += f"        size_t count = n_bytes >> 1;\n"
+            elif el_type_def.native_size == 4:
+                code = f"        size_t n_bytes = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
+                # >> 2 is equal to dividing by 4
+                code += f"        size_t count = n_bytes >> 2;\n"
+            elif el_type_def.native_size == 8:
+                code = f"        size_t n_bytes = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
+                # >> 3 is equal to dividing by 8
+                code += f"        size_t count = n_bytes >> 3;\n"
+            else:
+                code = f"        size_t n_bytes = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
+                code += f"        size_t count = n_bytes / {el_type_def.native_size};\n"
+                
+            if type_def.name == "string":
+                # std::string_view
+                code = f"        size_t n_bytes = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
+                code += f"        auto ptr = reinterpret_cast<const char*>(buffer + {prefix}{member_def.name}_offset() + 8);\n"  # +8 to skip the size
+                code += f"        return std::string_view(ptr, n_bytes);\n"
+            elif type_def.name.startswith("vector<") and el_type_def.variable_length:
+                # struct_array<T>
+                # Note: size is part of struct_array<T>, that's why no + 8 here!
+                code = f"        return struct_array<{el_type_cpp}>(buffer + {prefix}{member_def.name}_offset());\n"
+            else:
+                # std::span<T>
+                code = f"        size_t n_bytes = {prefix}{member_def.name}_size_unaligned() - 8;\n"  # -8 to skip the size
+                code += f"        size_t count = n_bytes / {el_type_def.native_size};\n"
+                code += f"        auto ptr = reinterpret_cast<{el_type_cpp}*>(buffer + {prefix}{member_def.name}_offset() + 8);\n"  # +8 to skip the size
+                code += f"        return std::span<{el_type_cpp}>(ptr, count);\n"
+        elif el_type_def.category == "s":
+            # struct_array<T> where T are structs
+            code = f"        auto ptr = buffer + {prefix}{member_def.name}_offset();\n"
+            code += f"        return struct_array<{el_type_cpp}>::open(ptr, {prefix}{member_def.name}_size_aligned(), false);\n"
         else:
-            code += f"        size_t count = n_bytes / {el_type_def.native_size};\n"
-        if type_def.name == "string":
-            # std::string_view
-            code += f"        auto ptr = reinterpret_cast<const char*>(buffer + {prefix}{member_def.name}_offset() + 8);\n"  # +8 to skip the size
-            code += f"        return std::string_view(ptr, count);\n"
-        else:
-            # std::span<T>
-            code += f"        auto ptr = reinterpret_cast<{el_type_cpp}*>(buffer + {prefix}{member_def.name}_offset() + 8);\n"  # +8 to skip the size
-            code += f"        return std::span<{el_type_cpp}>(ptr, count);\n"
+            raise ValueError(f"Unsupported container element type: {el_type_def.category}")
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
 
@@ -423,35 +456,47 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
     elif type_def.category == "p":
         # primitive
         code = f"        *reinterpret_cast<{lang_type}*>(buffer + {prefix}{member_def.name}_offset()) = value;\n"
-    elif type_def.category == "c":
-        # container with variable length (string, vector<T>) and fixed element size
-        el_type_def = member_def.type_def.element_type_def
-        el_size_bytes = el_type_def.native_size
-        code = f"        size_t offset = {prefix}{member_def.name}_offset();\n"
-        code += f"        size_t contents_size = value.size() * {el_size_bytes};\n"
-        maybe_unaligned = el_type_def.native_size % 8 != 0
-        if maybe_unaligned:
-            # string or vector<T> with size of T not divisible of 8
-            code += f"        size_t unaligned_size = 8 + contents_size;\n"
-            code += f"        size_t aligned_size = (unaligned_size + 7) & ~7;\n"
-            code += f"        size_t aligned_diff = aligned_size - unaligned_size;\n"
-            # add diff to high-bits of aligned_size
-            code += f"        size_t aligned_size_high = aligned_size | (aligned_diff << 56);\n"
-            code += f"        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;\n"
-        else:
-            # element size is divisible by 8, no alignment adjustment needed
-            code += f"        *reinterpret_cast<size_t*>(buffer + offset) = 8 + contents_size;\n"
-        code += f"        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);\n"
-        code += f"        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());\n"
-        code += f"        std::copy(src_ptr, src_ptr + contents_size, dest_ptr);\n"
     elif type_def.category == "s":
         # struct
         code = f'        assert(value.fastbin_binary_size() > 0 && "Cannot set member `{member_def.name}`, parameter struct of type `{lang_type}` not finalized. Call fastbin_finalize() on struct after creation.");\n'
-        code += f"        size_t offset = {prefix}{member_def.name}_offset();\n"
+        code += f"        auto dest_ptr = buffer + {prefix}{member_def.name}_offset();\n"
         code += f"        size_t size = value.fastbin_binary_size();\n"
         code += (
-            f"        std::copy(value.buffer, value.buffer + size, buffer + offset);\n"
+            f"        std::copy(value.buffer, value.buffer + size, dest_ptr);\n"
         )
+    elif type_def.category == "c":
+        # container with variable length (string, vector<T>)
+        el_type_def = member_def.type_def.element_type_def
+        if el_type_def.category == "p":
+            # for primitive elements
+            el_size_bytes = el_type_def.native_size
+            code = f"        size_t offset = {prefix}{member_def.name}_offset();\n"
+            code += f"        size_t contents_size = value.size() * {el_size_bytes};\n"
+            maybe_unaligned = el_type_def.native_size % 8 != 0
+            if maybe_unaligned:
+                # string or vector<T> with size of T not divisible of 8
+                code += f"        size_t unaligned_size = 8 + contents_size;\n"
+                code += f"        size_t aligned_size = (unaligned_size + 7) & ~7;\n"
+                code += f"        size_t aligned_diff = aligned_size - unaligned_size;\n"
+                # add diff to high-bits of aligned_size
+                code += f"        size_t aligned_size_high = aligned_size | (aligned_diff << 56);\n"
+                code += f"        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;\n"
+            else:
+                # element size is divisible by 8, no alignment adjustment needed
+                code += f"        *reinterpret_cast<size_t*>(buffer + offset) = 8 + contents_size;\n"
+            code += f"        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);\n"
+            code += f"        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());\n"
+            code += f"        std::copy(src_ptr, src_ptr + contents_size, dest_ptr);\n"
+        elif el_type_def.category == "s":
+            # this is the same code as for struct
+            code = f'        assert(value.fastbin_binary_size() > 0 && "Cannot set member `{member_def.name}`. Parameter of type `{lang_type}` not initialized.");\n'
+            code += f"        auto dest_ptr = buffer + {prefix}{member_def.name}_offset();\n"
+            code += f"        size_t size = value.fastbin_binary_size();\n"
+            code += (
+                f"        std::copy(value.buffer, value.buffer + size, dest_ptr);\n"
+            )
+        else:
+            raise ValueError(f"Unsupported container element type: {el_type_def.category}")
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
 
@@ -495,6 +540,40 @@ def generate_size_member_body(
     return code
 
 
+def generate_calc_size_aligned_member_body(ctx: GenContext, struct_def: StructDef, member_def: StructMemberDef):
+    # NOTE: Must match implementation in `generate_size_member_body`
+    type_def = member_def.type_def
+    lang_type = type_def.lang_type
+
+    if type_def.category in ["p", "e"]:
+        # primitive, enum
+        code = f"        return {type_def.aligned_size};\n"
+    elif type_def.category == "c":
+        if type_def.lang_type.startswith("struct_array"):
+            # container with fixed- or variable size structs
+            code = f"        return value.fastbin_binary_size();\n"
+        else:
+            # container with variable size (string, vector<T>) and fixed element size
+            el_type_def = member_def.type_def.element_type_def
+            el_size_bytes = el_type_def.native_size
+            code = f"        size_t contents_size = value.size() * {el_size_bytes};\n"
+            maybe_unaligned = el_type_def.native_size % 8 != 0
+            if maybe_unaligned:
+                # string or vector<T> with size of T not divisible by 8
+                code += f"        size_t unaligned_size = 8 + contents_size;\n"
+                code += f"        return (unaligned_size + 7) & ~7;\n"
+            else:
+                # element size is divisible by 8, no alignment adjustment needed
+                code += f"        return 8 + contents_size;\n"
+    elif type_def.category == "s":
+        # struct
+        code = f'        return value.fastbin_binary_size();\n'
+    else:
+        raise ValueError(f"Unknown type category: {type_def.category}")
+
+    return code
+
+
 def generate_offset_member_body(
     ctx: GenContext, index: int, struct_def: StructDef, member_def: StructMemberDef
 ):
@@ -505,7 +584,7 @@ def generate_offset_member_body(
     else:
         # fixed-length struct
         offset = 0
-    for (i, prev_member) in enumerate(struct_def.members.values()):
+    for i, prev_member in enumerate(struct_def.members.values()):
         if i < index:
             if prev_member.type_def.variable_length:
                 # cannot precompute fixed offset, variable length member found
@@ -549,9 +628,11 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
 
     includes = [
         "#include <cstddef>",
+        "#include <cstring>",
         "#include <cassert>",
         "#include <ostream>",
         "#include <span>",
+        '#include "_traits.hpp"',
     ]
 
     member_names = list(name for name, _ in struct_def.members.items())
@@ -566,57 +647,73 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     for i, (name, member_def) in enumerate(struct_def.members.items()):
         code_body += f"\n    // Member: {name} [{member_def.type_def.lang_type}]\n"
         type_def = member_def.type_def
-        
+
         # getter
         code_body += f"\n    inline {type_def.lang_type} {name}() const noexcept\n"
         code_body += "    {\n"
         code_body += generate_get_member_body(ctx, member_def)
         code_body += "    }\n"
         code_body += "\n"
-        
+
         # setter
-        if type_def.category == "s":
-            # struct
-            code_body += f"    inline void {name}(const {type_def.lang_type}& value) noexcept\n"
+        if type_def.category == "s" or type_def.lang_type.startswith("struct_array"):
+            # struct or struct_array<T>
+            code_body += (
+                f"    inline void {name}(const {type_def.lang_type}& value) noexcept\n"
+            )
         else:
-            code_body += f"    inline void {name}(const {type_def.lang_type} value) noexcept\n"
+            code_body += (
+                f"    inline void {name}(const {type_def.lang_type} value) noexcept\n"
+            )
         code_body += "    {\n"
         code_body += generate_set_member_body(ctx, member_def)
         code_body += f"    }}\n"
         code_body += "\n"
-        
+
         # offset
-        code_body += f"    constexpr inline size_t {prefix}{name}_offset() const noexcept\n"
+        code_body += (
+            f"    constexpr inline size_t {prefix}{name}_offset() const noexcept\n"
+        )
         code_body += "    {\n"
         code_body += generate_offset_member_body(ctx, i, struct_def, member_def)
         code_body += f"    }}\n"
         code_body += "\n"
-        
+
         # size aligned
         code_body += f"    constexpr inline size_t {prefix}{name}_size_aligned() const noexcept\n"
         code_body += "    {\n"
         code_body += generate_size_member_body(ctx, member_def, False)
         code_body += f"    }}\n"
-        
+        code_body += "\n"
+            
+        # calc size aligned
+        if type_def.lang_type == "StringView":
+            code_body += f"    static size_t {prefix}{name}_calc_size_aligned(const {type_def.lang_type}& value)\n"
+        else:
+            code_body += f"    static size_t {prefix}{name}_calc_size_aligned(const {type_def.lang_type}& value)\n"
+        code_body += "    {\n"
+        code_body += generate_calc_size_aligned_member_body(ctx, struct_def, member_def)
+        code_body += "    }\n"
+        code_body += "\n"
+
         # size unaligned
         if type_def.category == "c":
-            code_body += "\n"
-            code_body += (
-                f"    constexpr inline size_t {prefix}{name}_size_unaligned() const noexcept\n"
-            )
+            code_body += f"    constexpr inline size_t {prefix}{name}_size_unaligned() const noexcept\n"
             code_body += "    {\n"
             code_body += generate_size_member_body(ctx, member_def, True)
             code_body += f"    }}\n"
 
     code_body += "\n    // --------------------------------------------------------------------------------\n"
-    
+
     # add includes based on member types
-    includes.extend([
-        m.type_def.include_stmt
-        for m in struct_def.members.values()
-        if m.type_def.include_stmt != ""
-    ])
-    
+    includes.extend(
+        [
+            m.type_def.include_stmt
+            for m in struct_def.members.values()
+            if m.type_def.include_stmt != ""
+        ]
+    )
+
     # sort includes so that *.hpp are included last
     includes.sort(key=lambda x: ".hpp" in x)
 
@@ -634,51 +731,69 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code += f" *\n"
         code += f" * {'-'*60}\n"
         code += f" *\n"
-
     code += " * Binary serializable data container generated by `fastbin`.\n"
     code += " * \n"
     if struct_def.type_def.variable_length:
         code += " * This container has variable size.\n"
         code += " * All setter methods starting from the first variable-sized member and afterwards MUST be called in order.\n"
         code += " *\n"
-        code += " * Members in order\n"
-        code += " * ================\n"
-        for i, (name, member_def) in enumerate(struct_def.members.items()):
-            name_type = '`' + name + "` [`" + member_def.type_def.lang_type + '`]'
-            code += f" * - {name_type.ljust(24)} ({'variable' if member_def.type_def.variable_length else 'fixed'})\n"
-        code += " *\n"
     else:
         code += f" * This container has fixed size of {struct_def.type_def.aligned_size} bytes.\n"
         code += " *\n"
+    code += " * Members in order\n"
+    code += " * ================\n"
+    for i, (name, member_def) in enumerate(struct_def.members.items()):
+        name_type = "`" + name + "` [`" + member_def.type_def.lang_type + "`]"
+        code += f" * - {name_type.ljust(24)} ({'variable' if member_def.type_def.variable_length else 'fixed'})\n"
+    code += " *\n"
     code += " * The `finalize()` method MUST be called after all setter methods have been called.\n"
     code += " * \n"
     code += " * It is the responsibility of the caller to ensure that the buffer is\n"
     code += " * large enough to hold all data.\n"
     code += " */\n"
-    code += f"struct {struct_def.name}\n"
+    code += f"class {struct_def.name} final\n"
     code += "{\n"
+    code += "public:\n"
     code += "    std::byte* buffer{nullptr};\n"
     code += "    size_t buffer_size{0};\n"
     code += "    bool owns_buffer{false};\n"
+    code += "\n"
 
+    code += "private:\n"
     # constructor
-    code += "\n"
-    code += f"    explicit {struct_def.name}(std::byte* buffer, size_t binary_size, bool owns_buffer) noexcept\n"
-    code += (
-        "        : buffer(buffer), buffer_size(binary_size), owns_buffer(owns_buffer)\n"
-    )
+    code += f"    {struct_def.name}(\n"
+    code += f"        std::byte* buffer, size_t buffer_size, bool owns_buffer\n"
+    code += f"    ) noexcept\n"
+    code += f"        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)\n"
     code += "    {\n"
     code += "    }\n"
     code += "\n"
-    code += f"    explicit {struct_def.name}(std::span<std::byte> buffer, bool owns_buffer) noexcept\n"
-    code += (
-        f"        : {struct_def.name}(buffer.data(), buffer.size(), owns_buffer)\n"
-    )
-    code += "    {\n"
-    code += "    }\n"
 
-    # destructor
+    code += "public:\n"
+    code += f"    static {struct_def.name} create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept\n"
+    code += "    {\n"
+    code += "        std::memset(buffer, 0, buffer_size);\n"
+    code += "        return {buffer, buffer_size, owns_buffer};\n"
+    code += "    }\n"
     code += "\n"
+    code += f"    static {struct_def.name} create(std::span<std::byte> buffer, bool owns_buffer) noexcept\n"
+    code += "    {\n"
+    code += f"        return create(buffer.data(), buffer.size(), owns_buffer);\n"
+    code += "    }\n"
+    code += "\n"
+    code += f"    static {struct_def.name} open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept\n"
+    code += "    {\n"
+    code += "        return {buffer, buffer_size, owns_buffer};\n"
+    code += "    }\n"
+    code += "    \n"
+    code += f"    static {struct_def.name} open(std::span<std::byte> buffer, bool owns_buffer) noexcept\n"
+    code += "    {\n"
+    code += f"        return {struct_def.name}(buffer.data(), buffer.size(), owns_buffer);\n"
+    code += "    }\n"
+    code += "    \n"
+    
+    # destructor
+    code += "    // destructor\n"
     code += f"    ~{struct_def.name}() noexcept\n"
     code += "    {\n"
     code += "        if (owns_buffer && buffer != nullptr)\n"
@@ -725,19 +840,43 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code += "    constexpr inline size_t fastbin_calc_binary_size() const noexcept\n"
     code += "    {\n"
     if struct_def.type_def.variable_length:
-        code += (
-            f"        return {prefix}{member_names[-1]}_offset() + {prefix}{member_names[-1]}_size_aligned();\n"
-        )
+        code += f"        return {prefix}{member_names[-1]}_offset() + {prefix}{member_names[-1]}_size_aligned();\n"
     else:
         code += f"        return {struct_def.type_def.aligned_size};\n"
     code += "    }\n"
 
+    # binary size estimation helper
+    if not struct_def.type_def.variable_length:
+        # fixed size
+        code += "\n"
+        code += "    constexpr size_t fastbin_calc_binary_size()\n"
+        code += "    {\n"
+        code += f"        return {struct_def.type_def.aligned_size};\n"
+        code += "    }\n"
+    else:
+        # variable length.
+        # calculate size based on the fixed size + the size of all variable-length members
+        var_members = [(k,v) for (k,v) in struct_def.members.items() if v.type_def.variable_length]
+        fixed_members = [(k,v) for (k,v) in struct_def.members.items() if not v.type_def.variable_length]
+        code += "\n"
+        code += f"    static size_t fastbin_calc_binary_size(\n"
+        params = [f"const {member_def.type_def.lang_type}& {member_def.name}" for name, member_def in var_members]
+        code += "        " + (",\n        ".join(params))
+        code += "\n"
+        code += "    )\n"
+        code += "    {\n"
+        fixed_size = 8 + sum([v.type_def.aligned_size for (_,v) in fixed_members])
+        code += f"        return {fixed_size} + "
+        code += ' +\n            '.join([f'{prefix}{name}_calc_size_aligned({name})' for name, _ in var_members])
+        code += ";\n"
+        code += "    }\n"
+
     # binary size
     code += "\n"
     code += "    /**\n"
-    code += '     * Returns the stored (aligned) binary size of the object.\n'
-    code += '     * This function should only be called after `fastbin_finalize()`.\n'
-    code += '     */\n'
+    code += "     * Returns the stored (aligned) binary size of the object.\n"
+    code += "     * This function should only be called after `fastbin_finalize()`.\n"
+    code += "     */\n"
     code += "    constexpr inline size_t fastbin_binary_size() const noexcept\n"
     code += "    {\n"
     if struct_def.type_def.variable_length:
@@ -745,21 +884,41 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     else:
         code += f"        return {struct_def.type_def.aligned_size};\n"
     code += "    }\n"
+    
+    if not type_def.variable_length:
+        # also provide static constexpr for fixed-size structs
+        code += "\n"
+        code += f"    static constexpr size_t fastbin_fixed_size() noexcept\n"
+        code += f"    {{\n"
+        code += f"        return {struct_def.type_def.aligned_size};\n"
+        code += f"    }}\n"
 
     # finalize (write the struct's binary size to the first 8 bytes)
     code += "\n"
     code += "    /**\n"
-    code += '     * Finalizes the object by writing the binary size to the beginning of its buffer.\n'
-    code += '     * After calling this function, the underlying buffer can be used for serialization.\n'
-    code += '     * To get the actual buffer size, call `fastbin_binary_size()`.\n'
-    code += '     */\n'
-    code += "    inline void fastbin_finalize() const noexcept\n"
+    code += "     * Finalizes the object by writing the binary size to the beginning of its buffer.\n"
+    code += "     * After calling this function, the underlying buffer can be used for serialization.\n"
+    code += "     * To get the actual buffer size, call `fastbin_binary_size()`.\n"
+    code += "     */\n"
+    code += "    inline void fastbin_finalize() noexcept\n"
     code += "    {\n"
     if struct_def.type_def.variable_length:
-        code += "        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();\n"
+        code += (
+            "        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();\n"
+        )
     code += "    }\n"
 
     code += "};\n"
+    
+    # Type traits
+    code += "\n"
+    code += "// Type traits\n"
+    code += f"template <>\n"
+    code += f"struct is_variable_size<{struct_def.name}>\n"
+    code += "{\n"
+    code += f"    static constexpr bool value = {'true' if type_def.variable_length else 'false'};\n"
+    code += "};\n"
+    
     code += f"}}; // namespace {ctx.namespace}\n"
 
     # ostream << operator
@@ -791,7 +950,21 @@ def generate_single_include_header_file(output_dir: str, ctx: GenContext):
         file.write(code)
 
 
-def generate_cpp_code(schema_file, output_dir: str):
+def move_template_files(output_dir: str, ctx: GenContext, script_dir: str):
+    # move template files from "templates" directory to output directory
+    # replace "YOUR_NAMESPACE" with actual namespace
+    tpl_path = os.path.join(script_dir, "templates")
+    files = os.listdir(tpl_path)
+    for file in files:
+        file_path = os.path.join(tpl_path, file)
+        with open(file_path, "r") as f:
+            code = f.read()
+            code = code.replace("YOUR_NAMESPACE", ctx.namespace)
+            with open(f"{output_dir}/{file}", "w") as ff:
+                ff.write(code)
+
+
+def generate_cpp_code(schema_file, output_dir: str, script_dir: str):
     with open(schema_file, "r") as file:
         schema = json.load(file)
 
@@ -815,6 +988,9 @@ def generate_cpp_code(schema_file, output_dir: str):
 
     # single include header file
     generate_single_include_header_file(output_dir, ctx)
+    
+    # move template files to output directory
+    move_template_files(output_dir, ctx, script_dir)
 
 
 if __name__ == "__main__":
@@ -822,6 +998,7 @@ if __name__ == "__main__":
         print("Usage: python fastbin_cpp.py <schema.json> <output_dir>")
         sys.exit(1)
 
+    script_dir = os.path.dirname(os.path.realpath(__file__))
     schema_file = sys.argv[1]
     output_dir = sys.argv[2]
-    generate_cpp_code(schema_file, output_dir)
+    generate_cpp_code(schema_file, output_dir, script_dir)

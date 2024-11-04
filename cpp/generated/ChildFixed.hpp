@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
 #include <cassert>
 #include <ostream>
 #include <span>
 #include <cstdint>
+#include "_traits.hpp"
 
 namespace my_models
 {
@@ -13,27 +15,54 @@ namespace my_models
  * 
  * This container has fixed size of 16 bytes.
  *
+ * Members in order
+ * ================
+ * - `field1` [`std::int32_t`] (fixed)
+ * - `field2` [`std::int32_t`] (fixed)
+ *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-struct ChildFixed
+class ChildFixed final
 {
+public:
     std::byte* buffer{nullptr};
     size_t buffer_size{0};
     bool owns_buffer{false};
 
-    explicit ChildFixed(std::byte* buffer, size_t binary_size, bool owns_buffer) noexcept
-        : buffer(buffer), buffer_size(binary_size), owns_buffer(owns_buffer)
+private:
+    ChildFixed(
+        std::byte* buffer, size_t buffer_size, bool owns_buffer
+    ) noexcept
+        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
     {
     }
 
-    explicit ChildFixed(std::span<std::byte> buffer, bool owns_buffer) noexcept
-        : ChildFixed(buffer.data(), buffer.size(), owns_buffer)
+public:
+    static ChildFixed create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
+        std::memset(buffer, 0, buffer_size);
+        return {buffer, buffer_size, owns_buffer};
     }
 
+    static ChildFixed create(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return create(buffer.data(), buffer.size(), owns_buffer);
+    }
+
+    static ChildFixed open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    {
+        return {buffer, buffer_size, owns_buffer};
+    }
+    
+    static ChildFixed open(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return ChildFixed(buffer.data(), buffer.size(), owns_buffer);
+    }
+    
+    // destructor
     ~ChildFixed() noexcept
     {
         if (owns_buffer && buffer != nullptr)
@@ -92,6 +121,12 @@ struct ChildFixed
         return 8;
     }
 
+    static size_t _field1_calc_size_aligned(const std::int32_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: field2 [std::int32_t]
 
     inline std::int32_t field2() const noexcept
@@ -114,9 +149,20 @@ struct ChildFixed
         return 8;
     }
 
+    static size_t _field2_calc_size_aligned(const std::int32_t& value)
+    {
+        return 8;
+    }
+
+
     // --------------------------------------------------------------------------------
 
     constexpr inline size_t fastbin_calc_binary_size() const noexcept
+    {
+        return 16;
+    }
+
+    constexpr size_t fastbin_calc_binary_size()
     {
         return 16;
     }
@@ -130,14 +176,26 @@ struct ChildFixed
         return 16;
     }
 
+    static constexpr size_t fastbin_fixed_size() noexcept
+    {
+        return 16;
+    }
+
     /**
      * Finalizes the object by writing the binary size to the beginning of its buffer.
      * After calling this function, the underlying buffer can be used for serialization.
      * To get the actual buffer size, call `fastbin_binary_size()`.
      */
-    inline void fastbin_finalize() const noexcept
+    inline void fastbin_finalize() noexcept
     {
     }
+};
+
+// Type traits
+template <>
+struct is_variable_size<ChildFixed>
+{
+    static constexpr bool value = false;
 };
 }; // namespace my_models
 

@@ -5,9 +5,9 @@
 #include <cassert>
 #include <ostream>
 #include <span>
-#include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_struct_array.hpp"
 
 namespace my_models
 {
@@ -19,15 +19,15 @@ namespace my_models
  *
  * Members in order
  * ================
- * - `field1` [`std::int32_t`] (fixed)
- * - `field2` [`std::string_view`] (variable)
+ * - `values` [`struct_array<ChildFixed>`] (variable)
+ * - `str` [`std::string_view`] (variable)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
  * 
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class ChildVar final
+class VectorOfFixedSizedStructs final
 {
 public:
     std::byte* buffer{nullptr};
@@ -35,7 +35,7 @@ public:
     bool owns_buffer{false};
 
 private:
-    ChildVar(
+    VectorOfFixedSizedStructs(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
         : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
@@ -43,29 +43,29 @@ private:
     }
 
 public:
-    static ChildVar create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    static VectorOfFixedSizedStructs create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
 
-    static ChildVar create(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    static VectorOfFixedSizedStructs create(std::span<std::byte> buffer, bool owns_buffer) noexcept
     {
         return create(buffer.data(), buffer.size(), owns_buffer);
     }
 
-    static ChildVar open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    static VectorOfFixedSizedStructs open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
         return {buffer, buffer_size, owns_buffer};
     }
     
-    static ChildVar open(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    static VectorOfFixedSizedStructs open(std::span<std::byte> buffer, bool owns_buffer) noexcept
     {
-        return ChildVar(buffer.data(), buffer.size(), owns_buffer);
+        return VectorOfFixedSizedStructs(buffer.data(), buffer.size(), owns_buffer);
     }
     
     // destructor
-    ~ChildVar() noexcept
+    ~VectorOfFixedSizedStructs() noexcept
     {
         if (owns_buffer && buffer != nullptr)
         {
@@ -75,17 +75,17 @@ public:
     }
 
     // disable copy
-    ChildVar(const ChildVar&) = delete;
-    ChildVar& operator=(const ChildVar&) = delete;
+    VectorOfFixedSizedStructs(const VectorOfFixedSizedStructs&) = delete;
+    VectorOfFixedSizedStructs& operator=(const VectorOfFixedSizedStructs&) = delete;
 
     // enable move
-    ChildVar(ChildVar&& other) noexcept
+    VectorOfFixedSizedStructs(VectorOfFixedSizedStructs&& other) noexcept
         : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
     {
         other.buffer = nullptr;
         other.buffer_size = 0;
     }
-    ChildVar& operator=(ChildVar&& other) noexcept
+    VectorOfFixedSizedStructs& operator=(VectorOfFixedSizedStructs&& other) noexcept
     {
         if (this != &other)
         {
@@ -101,46 +101,56 @@ public:
         return *this;
     }
 
-    // Member: field1 [std::int32_t]
+    // Member: values [struct_array<ChildFixed>]
 
-    inline std::int32_t field1() const noexcept
+    inline struct_array<ChildFixed> values() const noexcept
     {
-        return *reinterpret_cast<const std::int32_t*>(buffer + _field1_offset());
+        auto ptr = buffer + _values_offset();
+        return struct_array<ChildFixed>::open(ptr, _values_size_aligned(), false);
     }
 
-    inline void field1(const std::int32_t value) noexcept
+    inline void values(const struct_array<ChildFixed>& value) noexcept
     {
-        *reinterpret_cast<std::int32_t*>(buffer + _field1_offset()) = value;
+        assert(value.fastbin_binary_size() > 0 && "Cannot set member `values`. Parameter of type `struct_array<ChildFixed>` not initialized.");
+        auto dest_ptr = buffer + _values_offset();
+        size_t size = value.fastbin_binary_size();
+        std::copy(value.buffer, value.buffer + size, dest_ptr);
     }
 
-    constexpr inline size_t _field1_offset() const noexcept
+    constexpr inline size_t _values_offset() const noexcept
     {
         return 8;
     }
 
-    constexpr inline size_t _field1_size_aligned() const noexcept
+    constexpr inline size_t _values_size_aligned() const noexcept
     {
-        return 8;
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _values_offset());
+        return stored_size;
     }
 
-    static size_t _field1_calc_size_aligned(const std::int32_t& value)
+    static size_t _values_calc_size_aligned(const struct_array<ChildFixed>& value)
     {
-        return 8;
+        return value.fastbin_binary_size();
     }
 
-
-    // Member: field2 [std::string_view]
-
-    inline std::string_view field2() const noexcept
+    constexpr inline size_t _values_size_unaligned() const noexcept
     {
-        size_t n_bytes = _field2_size_unaligned() - 8;
-        auto ptr = reinterpret_cast<const char*>(buffer + _field2_offset() + 8);
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _values_offset());
+        return stored_size;
+    }
+
+    // Member: str [std::string_view]
+
+    inline std::string_view str() const noexcept
+    {
+        size_t n_bytes = _str_size_unaligned() - 8;
+        auto ptr = reinterpret_cast<const char*>(buffer + _str_offset() + 8);
         return std::string_view(ptr, n_bytes);
     }
 
-    inline void field2(const std::string_view value) noexcept
+    inline void str(const std::string_view value) noexcept
     {
-        size_t offset = _field2_offset();
+        size_t offset = _str_offset();
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
         size_t aligned_size = (unaligned_size + 7) & ~7;
@@ -152,28 +162,28 @@ public:
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
     }
 
-    constexpr inline size_t _field2_offset() const noexcept
+    constexpr inline size_t _str_offset() const noexcept
     {
-        return 16;
+        return _values_offset() + _values_size_aligned();
     }
 
-    constexpr inline size_t _field2_size_aligned() const noexcept
+    constexpr inline size_t _str_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _field2_offset());
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
 
-    static size_t _field2_calc_size_aligned(const std::string_view& value)
+    static size_t _str_calc_size_aligned(const std::string_view& value)
     {
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
         return (unaligned_size + 7) & ~7;
     }
 
-    constexpr inline size_t _field2_size_unaligned() const noexcept
+    constexpr inline size_t _str_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _field2_offset());
+        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
         size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size - aligned_diff;
@@ -183,14 +193,16 @@ public:
 
     constexpr inline size_t fastbin_calc_binary_size() const noexcept
     {
-        return _field2_offset() + _field2_size_aligned();
+        return _str_offset() + _str_size_aligned();
     }
 
     static size_t fastbin_calc_binary_size(
-        const std::string_view& field2
+        const struct_array<ChildFixed>& values,
+        const std::string_view& str
     )
     {
-        return 16 + _field2_calc_size_aligned(field2);
+        return 8 + _values_calc_size_aligned(values) +
+            _str_calc_size_aligned(str);
     }
 
     /**
@@ -215,16 +227,16 @@ public:
 
 // Type traits
 template <>
-struct is_variable_size<ChildVar>
+struct is_variable_size<VectorOfFixedSizedStructs>
 {
     static constexpr bool value = true;
 };
 }; // namespace my_models
 
-inline std::ostream& operator<<(std::ostream& os, const my_models::ChildVar& obj)
+inline std::ostream& operator<<(std::ostream& os, const my_models::VectorOfFixedSizedStructs& obj)
 {
-    os << "[my_models::ChildVar size=" << obj.fastbin_binary_size() << " bytes]\n";
-    os << "    field1: " << obj.field1() << "\n";
-    os << "    field2: " << std::string(obj.field2()) << "\n";
+    os << "[my_models::VectorOfFixedSizedStructs size=" << obj.fastbin_binary_size() << " bytes]\n";
+    os << "    values: " << "[vector<struct:ChildFixed> count=" << obj.values().size() << "]" << "\n";
+    os << "    str: " << std::string(obj.str()) << "\n";
     return os;
 }

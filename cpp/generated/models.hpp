@@ -9,5 +9,6 @@
 #include "ChildVar.hpp"
 #include "ChildFixed.hpp"
 #include "Parent.hpp"
-#include "UInt32Vector.hpp"
-#include "StructVector.hpp"
+#include "VectorOfUInt32.hpp"
+#include "VectorOfFixedSizedStructs.hpp"
+#include "VectorOfVariableSizedStructs.hpp"

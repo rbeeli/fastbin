@@ -362,36 +362,6 @@ def generate_get_member_body(ctx: GenContext, member_def: StructMemberDef):
     return code
 
 
-def generate_calc_size_aligned_member_body(ctx: GenContext, struct_def: StructDef, member_def: StructMemberDef):
-    # NOTE: Must match implementation in `generate_size_member_body`
-    type_def = member_def.type_def
-    lang_type = type_def.lang_type
-
-    if type_def.category in ["p", "e"]:
-        # primitive, enum
-        code = f"    return {type_def.aligned_size}\n"
-    elif type_def.category == "c":
-        # container with variable length (string, vector<T>) and fixed element size
-        el_type_def = member_def.type_def.element_type_def
-        el_size_bytes = el_type_def.native_size
-        code = f"    contents_size::UInt64 = length(value) * {el_size_bytes}\n"
-        maybe_unaligned = el_type_def.native_size % 8 != 0
-        if maybe_unaligned:
-            # string or vector<T> with size of T not divisible of 8
-            code += f"    unaligned_size::UInt64 = 8 + contents_size\n"
-            code += f"    return (unaligned_size + 7) & ~7\n"
-        else:
-            # element size is divisible by 8, no alignment adjustment needed
-            code += f"    return 8 + contents_size\n"
-    elif type_def.category == "s":
-        # struct
-        code = f'    return binary_size(value)\n'
-    else:
-        raise ValueError(f"Unknown type category: {type_def.category}")
-
-    return code
-
-
 def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
     # NOTE: Must match implementation in `generate_calc_size_aligned_member_body`
     type_def = member_def.type_def
@@ -466,6 +436,36 @@ def generate_size_member_body(
             code = f"    return unsafe_load(reinterpret(Ptr{{UInt64}}, obj.buffer + {prefix}{member_def.name}_offset(obj)))\n"
         else:
             code = f"    return {type_def.aligned_size}\n"
+    else:
+        raise ValueError(f"Unknown type category: {type_def.category}")
+
+    return code
+
+
+def generate_calc_size_aligned_member_body(ctx: GenContext, struct_def: StructDef, member_def: StructMemberDef):
+    # NOTE: Must match implementation in `generate_size_member_body`
+    type_def = member_def.type_def
+    lang_type = type_def.lang_type
+
+    if type_def.category in ["p", "e"]:
+        # primitive, enum
+        code = f"    return {type_def.aligned_size}\n"
+    elif type_def.category == "c":
+        # container with variable length (string, vector<T>) and fixed element size
+        el_type_def = member_def.type_def.element_type_def
+        el_size_bytes = el_type_def.native_size
+        code = f"    contents_size::UInt64 = length(value) * {el_size_bytes}\n"
+        maybe_unaligned = el_type_def.native_size % 8 != 0
+        if maybe_unaligned:
+            # string or vector<T> with size of T not divisible by 8
+            code += f"    unaligned_size::UInt64 = 8 + contents_size\n"
+            code += f"    return (unaligned_size + 7) & ~7\n"
+        else:
+            # element size is divisible by 8, no alignment adjustment needed
+            code += f"    return 8 + contents_size\n"
+    elif type_def.category == "s":
+        # struct
+        code = f'    return binary_size(value)\n'
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
 
@@ -594,15 +594,16 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     if struct_def.type_def.variable_length:
         code += "This container has variable size.\n"
         code += "All setter methods starting from the first variable-sized member and afterwards MUST be called in order.\n\n"
-        code += "Members in order\n"
-        code += "================\n"
-        for i, (name, member_def) in enumerate(struct_def.members.items()):
-            name_type = '`' + name + "::" + member_def.type_def.lang_type + '`'
-            code += f"- {name_type.ljust(24)} ({'variable' if member_def.type_def.variable_length else 'fixed'})\n"
-        code += "\n"
     else:
         code += f"This container has fixed size of {struct_def.type_def.aligned_size} bytes.\n"
         code += "\n"
+    
+    code += "Members in order\n"
+    code += "================\n"
+    for i, (name, member_def) in enumerate(struct_def.members.items()):
+        name_type = '`' + name + "::" + member_def.type_def.lang_type + '`'
+        code += f"- {name_type.ljust(24)} ({'variable' if member_def.type_def.variable_length else 'fixed'})\n"
+    code += "\n"        
     code += "The `fastbin_finalize!()` method MUST be called after all setter methods have been called.\n"
     code += "\n"
     code += "It is the responsibility of the caller to ensure that the buffer is\n"
@@ -658,10 +659,10 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         fixed_members = [(k,v) for (k,v) in struct_def.members.items() if not v.type_def.variable_length]
         code += "\n"
         code += f"@inline function fastbin_calc_binary_size(::Type{{{struct_def.name}}}"
-        fixed_size = 8 + sum([v.type_def.aligned_size for (_,v) in fixed_members])
         for (name, member_def) in var_members:
             code += f",\n    {member_def.name}::{member_def.type_def.lang_type}"
         code += "\n)\n"
+        fixed_size = 8 + sum([v.type_def.aligned_size for (_,v) in fixed_members])
         code += f"    return {fixed_size} +\n"
         code += "        " + ' +\n        '.join([f'{prefix}{name}_calc_size_aligned({struct_def.name}, {name})' for name, _ in var_members])
         code += "\n"

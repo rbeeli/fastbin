@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
 #include <cassert>
 #include <ostream>
 #include <span>
 #include <cstdint>
 #include <string_view>
+#include "_traits.hpp"
 #include "OrderbookType.hpp"
 
 namespace my_models
@@ -40,22 +42,44 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-struct StreamOrderbook
+class StreamOrderbook final
 {
+public:
     std::byte* buffer{nullptr};
     size_t buffer_size{0};
     bool owns_buffer{false};
 
-    explicit StreamOrderbook(std::byte* buffer, size_t binary_size, bool owns_buffer) noexcept
-        : buffer(buffer), buffer_size(binary_size), owns_buffer(owns_buffer)
+private:
+    StreamOrderbook(
+        std::byte* buffer, size_t buffer_size, bool owns_buffer
+    ) noexcept
+        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
     {
     }
 
-    explicit StreamOrderbook(std::span<std::byte> buffer, bool owns_buffer) noexcept
-        : StreamOrderbook(buffer.data(), buffer.size(), owns_buffer)
+public:
+    static StreamOrderbook create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
+        std::memset(buffer, 0, buffer_size);
+        return {buffer, buffer_size, owns_buffer};
     }
 
+    static StreamOrderbook create(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return create(buffer.data(), buffer.size(), owns_buffer);
+    }
+
+    static StreamOrderbook open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    {
+        return {buffer, buffer_size, owns_buffer};
+    }
+    
+    static StreamOrderbook open(std::span<std::byte> buffer, bool owns_buffer) noexcept
+    {
+        return StreamOrderbook(buffer.data(), buffer.size(), owns_buffer);
+    }
+    
+    // destructor
     ~StreamOrderbook() noexcept
     {
         if (owns_buffer && buffer != nullptr)
@@ -114,6 +138,12 @@ struct StreamOrderbook
         return 8;
     }
 
+    static size_t _server_time_calc_size_aligned(const std::int64_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: recv_time [std::int64_t]
 
     inline std::int64_t recv_time() const noexcept
@@ -135,6 +165,12 @@ struct StreamOrderbook
     {
         return 8;
     }
+
+    static size_t _recv_time_calc_size_aligned(const std::int64_t& value)
+    {
+        return 8;
+    }
+
 
     // Member: cts [std::int64_t]
 
@@ -158,6 +194,12 @@ struct StreamOrderbook
         return 8;
     }
 
+    static size_t _cts_calc_size_aligned(const std::int64_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: type [OrderbookType]
 
     inline OrderbookType type() const noexcept
@@ -179,6 +221,12 @@ struct StreamOrderbook
     {
         return 8;
     }
+
+    static size_t _type_calc_size_aligned(const OrderbookType& value)
+    {
+        return 8;
+    }
+
 
     // Member: depth [std::uint16_t]
 
@@ -202,14 +250,19 @@ struct StreamOrderbook
         return 8;
     }
 
+    static size_t _depth_calc_size_aligned(const std::uint16_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: symbol [std::string_view]
 
     inline std::string_view symbol() const noexcept
     {
         size_t n_bytes = _symbol_size_unaligned() - 8;
-        size_t count = n_bytes;
         auto ptr = reinterpret_cast<const char*>(buffer + _symbol_offset() + 8);
-        return std::string_view(ptr, count);
+        return std::string_view(ptr, n_bytes);
     }
 
     inline void symbol(const std::string_view value) noexcept
@@ -236,6 +289,13 @@ struct StreamOrderbook
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
+    }
+
+    static size_t _symbol_calc_size_aligned(const std::string_view& value)
+    {
+        size_t contents_size = value.size() * 1;
+        size_t unaligned_size = 8 + contents_size;
+        return (unaligned_size + 7) & ~7;
     }
 
     constexpr inline size_t _symbol_size_unaligned() const noexcept
@@ -268,6 +328,12 @@ struct StreamOrderbook
         return 8;
     }
 
+    static size_t _update_id_calc_size_aligned(const std::uint64_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: seq_num [std::uint64_t]
 
     inline std::uint64_t seq_num() const noexcept
@@ -290,12 +356,18 @@ struct StreamOrderbook
         return 8;
     }
 
+    static size_t _seq_num_calc_size_aligned(const std::uint64_t& value)
+    {
+        return 8;
+    }
+
+
     // Member: bid_prices [std::span<double>]
 
     inline std::span<double> bid_prices() const noexcept
     {
         size_t n_bytes = _bid_prices_size_unaligned() - 8;
-        size_t count = n_bytes >> 3;
+        size_t count = n_bytes / 8;
         auto ptr = reinterpret_cast<double*>(buffer + _bid_prices_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -321,6 +393,12 @@ struct StreamOrderbook
         return stored_size;
     }
 
+    static size_t _bid_prices_calc_size_aligned(const std::span<double>& value)
+    {
+        size_t contents_size = value.size() * 8;
+        return 8 + contents_size;
+    }
+
     constexpr inline size_t _bid_prices_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _bid_prices_offset());
@@ -332,7 +410,7 @@ struct StreamOrderbook
     inline std::span<double> bid_quantities() const noexcept
     {
         size_t n_bytes = _bid_quantities_size_unaligned() - 8;
-        size_t count = n_bytes >> 3;
+        size_t count = n_bytes / 8;
         auto ptr = reinterpret_cast<double*>(buffer + _bid_quantities_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -358,6 +436,12 @@ struct StreamOrderbook
         return stored_size;
     }
 
+    static size_t _bid_quantities_calc_size_aligned(const std::span<double>& value)
+    {
+        size_t contents_size = value.size() * 8;
+        return 8 + contents_size;
+    }
+
     constexpr inline size_t _bid_quantities_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _bid_quantities_offset());
@@ -369,7 +453,7 @@ struct StreamOrderbook
     inline std::span<double> ask_prices() const noexcept
     {
         size_t n_bytes = _ask_prices_size_unaligned() - 8;
-        size_t count = n_bytes >> 3;
+        size_t count = n_bytes / 8;
         auto ptr = reinterpret_cast<double*>(buffer + _ask_prices_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -395,6 +479,12 @@ struct StreamOrderbook
         return stored_size;
     }
 
+    static size_t _ask_prices_calc_size_aligned(const std::span<double>& value)
+    {
+        size_t contents_size = value.size() * 8;
+        return 8 + contents_size;
+    }
+
     constexpr inline size_t _ask_prices_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _ask_prices_offset());
@@ -406,7 +496,7 @@ struct StreamOrderbook
     inline std::span<double> ask_quantities() const noexcept
     {
         size_t n_bytes = _ask_quantities_size_unaligned() - 8;
-        size_t count = n_bytes >> 3;
+        size_t count = n_bytes / 8;
         auto ptr = reinterpret_cast<double*>(buffer + _ask_quantities_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -432,6 +522,12 @@ struct StreamOrderbook
         return stored_size;
     }
 
+    static size_t _ask_quantities_calc_size_aligned(const std::span<double>& value)
+    {
+        size_t contents_size = value.size() * 8;
+        return 8 + contents_size;
+    }
+
     constexpr inline size_t _ask_quantities_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _ask_quantities_offset());
@@ -443,6 +539,21 @@ struct StreamOrderbook
     constexpr inline size_t fastbin_calc_binary_size() const noexcept
     {
         return _ask_quantities_offset() + _ask_quantities_size_aligned();
+    }
+
+    static size_t fastbin_calc_binary_size(
+        const std::string_view& symbol,
+        const std::span<double>& bid_prices,
+        const std::span<double>& bid_quantities,
+        const std::span<double>& ask_prices,
+        const std::span<double>& ask_quantities
+    )
+    {
+        return 64 + _symbol_calc_size_aligned(symbol) +
+            _bid_prices_calc_size_aligned(bid_prices) +
+            _bid_quantities_calc_size_aligned(bid_quantities) +
+            _ask_prices_calc_size_aligned(ask_prices) +
+            _ask_quantities_calc_size_aligned(ask_quantities);
     }
 
     /**
@@ -459,10 +570,17 @@ struct StreamOrderbook
      * After calling this function, the underlying buffer can be used for serialization.
      * To get the actual buffer size, call `fastbin_binary_size()`.
      */
-    inline void fastbin_finalize() const noexcept
+    inline void fastbin_finalize() noexcept
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
+};
+
+// Type traits
+template <>
+struct is_variable_size<StreamOrderbook>
+{
+    static constexpr bool value = true;
 };
 }; // namespace my_models
 

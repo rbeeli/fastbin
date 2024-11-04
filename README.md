@@ -4,10 +4,12 @@ Fast binary serialization for C++ and Julia data objects used for zero-copy IPC 
 
 ## Overview
 
-The library is designed to be used in high-performance computing applications where serialization and deserialization speed is critical. The library does not perform any compression.
+The library is designed to be used in high-performance computing applications where serialization and deserialization speed is critical.
+The library does not perform any compression on the serialized data. In fact, it is designed to be as fast as possible, even at the cost of increased data size.
 
 The data objects are defined in a JSON schema incl. enumeration types and docstrings.
-A Python script generates the C++ and Julia code for the serialization and deserialization of the data objects. The generated code is then used in the C++ and Julia applications.
+A Python script generates the C++ and Julia code files required for the serialization and deserialization of the data objects.
+The generated code can be used in the C++ and Julia applications, and the data objects can be serialized and deserialized between the two languages without any data loss or conversion.
 
 ## Features
 
@@ -16,8 +18,9 @@ A Python script generates the C++ and Julia code for the serialization and deser
 - No dynamic memory allocation
 - Documentation (docstrings) of data objects in JSON schema file
 - Support for enumeration types
-- Support for nested data objects
-- Support for arrays of fixed-size elements
+- Support for nested structs
+- Support for arrays of fixed-size primitives and structs
+- Support for arrays of variable-size structs
 
 ### Supported languages
 
@@ -26,25 +29,27 @@ A Python script generates the C++ and Julia code for the serialization and deser
 
 ### Supported types
 
-| Category    | Schema type | C++ type           | Julia type       |
-| ----------- | ----------- | ------------------ | ---------------- |
-| Primitive   | `int8`      | `int8_t`           | `Int8`           |
-| Primitive   | `int16`     | `int16_t`          | `Int16`          |
-| Primitive   | `int32`     | `int32_t`          | `Int32`          |
-| Primitive   | `int64`     | `int64_t`          | `Int64`          |
-| Primitive   | `uint8`     | `uint8_t`          | `UInt8`          |
-| Primitive   | `uint16`    | `uint16_t`         | `UInt16`         |
-| Primitive   | `uint32`    | `uint32_t`         | `UInt32`         |
-| Primitive   | `uint64`    | `uint64_t`         | `UInt64`         |
-| Primitive   | `float32`   | `float`            | `Float32`        |
-| Primitive   | `float64`   | `double`           | `Float64`        |
-| Primitive   | `char`      | `char`             | `UInt8`          |
-| Primitive   | `byte`      | `std::byte`        | `UInt8`          |
-| Primitive   | `bool`      | `bool`             | `Bool`           |
-| Container   | `string`    | `std::string_view` | `StringView`     |
-| Container   | `vector<T>` | `std::vector<T>`   | `Vector{T}`      |
-| Enumeration | `enum`      | `enum class`       | `@enumx`         |
-| Struct      | `struct`    | `struct`           | `mutable struct` |
+| Category    | Schema type | C++ type           | Julia type       | Notes            |
+| ----------- | ----------- | ------------------ | ---------------- | ---------------- |
+| Primitive   | `int8`      | `int8_t`           | `Int8`           |                  |
+| Primitive   | `int16`     | `int16_t`          | `Int16`          |                  |
+| Primitive   | `int32`     | `int32_t`          | `Int32`          |                  |
+| Primitive   | `int64`     | `int64_t`          | `Int64`          |                  |
+| Primitive   | `uint8`     | `uint8_t`          | `UInt8`          |                  |
+| Primitive   | `uint16`    | `uint16_t`         | `UInt16`         |                  |
+| Primitive   | `uint32`    | `uint32_t`         | `UInt32`         |                  |
+| Primitive   | `uint64`    | `uint64_t`         | `UInt64`         |                  |
+| Primitive   | `float32`   | `float`            | `Float32`        |                  |
+| Primitive   | `float64`   | `double`           | `Float64`        |                  |
+| Primitive   | `char`      | `char`             | `UInt8`          |                  |
+| Primitive   | `byte`      | `std::byte`        | `UInt8`          |                  |
+| Primitive   | `bool`      | `bool`             | `Bool`           |                  |
+| Enumeration | `enum`      | `enum class`       | `@enumx`         |                  |
+| Struct      | `struct`    | `class`            | `mutable struct` |                  |
+| Container   | `string`    | `std::string_view` | `StringView`     |                  |
+| Container   | `vector<T>` | `std::span<T>`     | `Vector{T}`      | For primitives   |
+| Container   | `vector<T>` | `struct_array<T>`  | `StructArray{T}` | For fixed-sized structs |
+| Container   | `vector<T>` | `struct_array<T>`  | `StructArray{T}` | For variable-sized structs |
 
 ## Schema
 
@@ -108,7 +113,6 @@ JSON is preferred over other (prioprietary) schema formats because it is human-r
 - Variable-sized members need to be set in order they appear in the schema
 - No support for pointers or references
 - No support for polymorphic types
-- No support for arrays of variable-sized elements (e.g. `vector<string>`, `vector<struct:MyVarStruct>`)
 - No support for unions
 - No support for circular references
 
