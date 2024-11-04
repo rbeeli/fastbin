@@ -211,6 +211,30 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
+
+    /**
+     * Copies the object to a new buffer.
+     * The new buffer must be large enough to hold all data.
+     */
+    [[nodiscard]] ChildVar copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
+    {
+        size_t size = fastbin_binary_size();
+        assert(dest_buffer_size >= size && "New buffer size too small.");
+        std::memcpy(dest_buffer, buffer, size);
+        return {dest_buffer, dest_buffer_size, owns_buffer};
+    }
+
+    /**
+     * Creates a copy of this object.
+     * The returned copy is completely independent of the original object.
+     */
+    [[nodiscard]] ChildVar copy() const noexcept
+    {
+        size_t size = fastbin_binary_size();
+        auto dest_buffer = new std::byte[size];
+        std::memcpy(dest_buffer, buffer, size);
+        return {dest_buffer, size, true};
+    }
 };
 
 // Type traits

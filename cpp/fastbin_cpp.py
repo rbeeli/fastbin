@@ -907,7 +907,33 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
             "        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();\n"
         )
     code += "    }\n"
-
+    
+    # copy
+    code += "\n"
+    code += "    /**\n"
+    code += "     * Copies the object to a new buffer.\n"
+    code += "     * The new buffer must be large enough to hold all data.\n"
+    code += "     */\n"
+    code += f"    [[nodiscard]] {struct_def.name} copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept\n"
+    code += "    {\n"
+    code += "        size_t size = fastbin_binary_size();\n"
+    code += "        assert(dest_buffer_size >= size && \"New buffer size too small.\");\n"
+    code += "        std::memcpy(dest_buffer, buffer, size);\n"
+    code += "        return {dest_buffer, dest_buffer_size, owns_buffer};\n"
+    code += "    }\n"
+    code += "\n"
+    code += "    /**\n"
+    code += "     * Creates a copy of this object.\n"
+    code += "     * The returned copy is completely independent of the original object.\n"
+    code += "     */\n"
+    code += f"    [[nodiscard]] {struct_def.name} copy() const noexcept\n"
+    code += "    {\n"
+    code += "        size_t size = fastbin_binary_size();\n"
+    code += "        auto dest_buffer = new std::byte[size];\n"
+    code += "        std::memcpy(dest_buffer, buffer, size);\n"
+    code += "        return {dest_buffer, size, true};\n"
+    code += "    }\n"
+    
     code += "};\n"
     
     # Type traits
