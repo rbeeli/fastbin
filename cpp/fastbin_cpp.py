@@ -75,11 +75,13 @@ class StructDef:
 class EnumMemberDef:
     name: str
     value: int
+    map: str
     docstring: List[str]
 
-    def __init__(self, name: str, value: int, docstring: str):
+    def __init__(self, name: str, value: int, map: str, docstring: str):
         self.name = name
         self.value = value
+        self.map = map
         self.docstring = docstring
 
 
@@ -87,6 +89,7 @@ class EnumDef:
     name: str
     type_def: TypeDef
     storage_type_def: TypeDef
+    generate_parse: bool
     members: Dict[str, EnumMemberDef]
     docstring: str
 
@@ -95,12 +98,14 @@ class EnumDef:
         name: str,
         type_def: TypeDef,
         storage_type_def: TypeDef,
+        generate_parse: bool,
         members: Dict[str, EnumMemberDef],
         docstring: str,
     ):
         self.name = name
         self.type_def = type_def
         self.storage_type_def = storage_type_def
+        self.generate_parse = generate_parse
         self.members = members
         self.docstring = docstring
 
@@ -197,15 +202,26 @@ class GenContext:
             members = {}
             for member_name, member_content in enum_content.get("members", {}).items():
                 value = member_content["value"]
+                map = member_content.get("map", member_name)
                 member_docstring = parse_docstring(
                     member_content.get("docstring", None)
                 )
                 members[member_name] = EnumMemberDef(
-                    member_name, value, member_docstring
+                    member_name, value, map, member_docstring
                 )
+            # ensure that enum members are unique
+            if len(members) != len(set(members.values())):
+                raise ValueError(f"Enum '{enum_name}' has duplicate members")
+            # ensure that enum values are unique
+            if len(set([m.value for m in members.values()])) != len(members):
+                raise ValueError(f"Enum '{enum_name}' has duplicate values")
+            # ensure that enum maps are unique
+            if len(set([m.map for m in members.values()])) != len(members):
+                raise ValueError(f"Enum '{enum_name}' has duplicate map entries")
 
+            generate_parse = enum_content.get("generate_parse", False)
             self.enums[enum_name] = EnumDef(
-                enum_name, type_def, storage_type, members, docstring
+                enum_name, type_def, storage_type, generate_parse, members, docstring
             )
 
         # parse structs
@@ -342,6 +358,9 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
     code += "\n"
     code += f"#include <string>\n"
     code += f"#include <ostream>\n"
+    if enum_def.generate_parse:
+        code += f"#include <string_view>\n"
+        code += f"#include <expected>\n"
     if enum_def.storage_type_def.include_stmt:
         code += f"{enum_def.storage_type_def.include_stmt}\n"
     code += "\n"
@@ -353,6 +372,17 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
     code += "{\n"
     code += code_body
     code += "};\n"
+    
+    # parse
+    if enum_def.generate_parse:
+        code += "\n"
+        code += f"inline std::expected<{ctx.namespace}::{enum_def.name}, std::string> parse_{enum_def.name}(std::string_view str)\n"
+        code += "{\n"
+        for mem in enum_def.members.values():
+            code += f"    if (str == \"{mem.map}\")\n"
+            code += f'        return {ctx.namespace}::{enum_def.name}::{mem.name};\n'
+        code += f'    return std::unexpected("Unknown {enum_def.name} enum string value: " + std::string(str));\n'
+        code += "}\n"
 
     code += f"}}; // namespace {ctx.namespace}\n"
 
@@ -369,7 +399,7 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
     code += '            return "Unknown";\n'
     code += "    }\n"
     code += "}\n"
-
+        
     # ostream << operator
     code += "\n"
     code += f"inline std::ostream& operator<<(std::ostream& os, const {ctx.namespace}::{enum_def.name}& obj)\n"
