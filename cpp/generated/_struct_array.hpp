@@ -170,7 +170,7 @@ public:
         size_t el_size = element.fastbin_calc_binary_size();
 
         // Check if there is enough space in the buffer
-        // assert(buffer_size - size_ref() >= el_size && "Buffer overflow in struct_array append");
+        assert(buffer_size - size_ref() >= el_size && "Buffer overflow in struct_array append");
 
         // Write element to the end of the buffer
         std::byte* dest = bufferptr() + (size_ref() - 2 * sizeof(size_t)); // Adjust for header size
