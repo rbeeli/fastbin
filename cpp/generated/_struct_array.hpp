@@ -188,6 +188,22 @@ public:
     }
 
     /**
+     * Calculates the binary size of the struct_array with the given elements.
+     * The elements must be of the same type as the struct_array.
+     * This function is used to pre-calculate the size before creating the struct_array.
+     */
+    template <std::ranges::range Container>
+        requires std::same_as<std::ranges::range_value_t<Container>, T>
+    static size_t fastbin_calc_binary_size(const Container& iterable)
+    {
+        size_t base_size = 2 * sizeof(size_t);
+        size_t total_size = base_size;
+        for (const auto& item : iterable)
+            total_size += item.fastbin_calc_binary_size();
+        return total_size;
+    }
+
+    /**
      * Returns the stored (aligned) binary size of the object.
      * This function should only be called after `fastbin_finalize()`.
      */
@@ -204,6 +220,32 @@ public:
     inline void fastbin_finalize() noexcept
     {
         // no-op for struct_array - size is already stored when appending elements
+    }
+
+    /**
+     * Copies the object to a new buffer.
+     * The new buffer must be large enough to hold all data.
+     */
+    [[nodiscard]] struct_array<T> copy(
+        std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer
+    ) const noexcept
+    {
+        size_t size = fastbin_binary_size();
+        assert(dest_buffer_size >= size && "New buffer size too small.");
+        std::memcpy(dest_buffer, buffer, size);
+        return {dest_buffer, dest_buffer_size, owns_buffer};
+    }
+
+    /**
+     * Creates a copy of this object.
+     * The returned copy is completely independent of the original object.
+     */
+    [[nodiscard]] struct_array<T> copy() const noexcept
+    {
+        size_t size = fastbin_binary_size();
+        auto dest_buffer = new std::byte[size];
+        std::memcpy(dest_buffer, buffer, size);
+        return {dest_buffer, size, true};
     }
 
     inline T operator[](size_t index)

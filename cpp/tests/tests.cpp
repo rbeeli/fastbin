@@ -161,6 +161,11 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
     // Copy the finalized struct_array to the VectorOfFixedSizedStructs
     v.values(arr);
 
+    EXPECT_EQ(
+        my_models::struct_array<my_models::ChildFixed>::fastbin_calc_binary_size(values),
+        arr.buffer_size
+    );
+
     v.str("test");
     v.fastbin_finalize();
 
@@ -255,6 +260,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
         array_buffer, array_buffer_size, true // owns its buffer
     );
 
+    std::vector<my_models::ChildVar> values;
     for (uint32_t i = 0; i < 3; ++i)
     {
         byte* buf = new byte[child_size]();
@@ -264,8 +270,14 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
         child.fastbin_finalize();
 
         arr.append(child);
+        values.emplace_back(std::move(child));
     }
     arr.fastbin_finalize();
+
+    EXPECT_EQ(
+        my_models::struct_array<my_models::ChildVar>::fastbin_calc_binary_size(values),
+        arr.buffer_size
+    );
 
     size_t buffer_size = my_models::VectorOfVariableSizedStructs::fastbin_calc_binary_size(
         arr, "test"
