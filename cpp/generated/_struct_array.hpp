@@ -7,6 +7,8 @@
 #include <vector>
 #include <stdexcept>
 #include <type_traits>
+#include <concepts>
+#include <ranges>
 
 #include "_traits.hpp"
 
@@ -196,11 +198,10 @@ public:
         requires std::same_as<std::ranges::range_value_t<Container>, T>
     static size_t fastbin_calc_binary_size(const Container& iterable)
     {
-        size_t base_size = 2 * sizeof(size_t);
-        size_t total_size = base_size;
+        size_t size = 2 * sizeof(size_t);
         for (const auto& item : iterable)
-            total_size += item.fastbin_calc_binary_size();
-        return total_size;
+            size += item.fastbin_calc_binary_size();
+        return size;
     }
 
     /**
