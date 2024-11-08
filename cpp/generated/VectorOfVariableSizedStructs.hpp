@@ -7,7 +7,8 @@
 #include <span>
 #include <string_view>
 #include "_traits.hpp"
-#include "_struct_array.hpp"
+#include "_BufferStored.hpp"
+#include "StructArray.hpp"
 
 namespace my_models
 {
@@ -19,7 +20,7 @@ namespace my_models
  *
  * Members in order
  * ================
- * - `values` [`struct_array<ChildVar>`] (variable)
+ * - `values` [`StructArray<ChildVar>`] (variable)
  * - `str` [`std::string_view`] (variable)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
@@ -27,18 +28,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class VectorOfVariableSizedStructs final
+class VectorOfVariableSizedStructs final : public BufferStored<VectorOfVariableSizedStructs>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<VectorOfVariableSizedStructs>::buffer;
+    using BufferStored<VectorOfVariableSizedStructs>::buffer_size;
+    using BufferStored<VectorOfVariableSizedStructs>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<VectorOfVariableSizedStructs>;
+
     VectorOfVariableSizedStructs(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<VectorOfVariableSizedStructs>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -48,70 +51,27 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static VectorOfVariableSizedStructs create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static VectorOfVariableSizedStructs open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static VectorOfVariableSizedStructs open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return VectorOfVariableSizedStructs(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~VectorOfVariableSizedStructs() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     VectorOfVariableSizedStructs(const VectorOfVariableSizedStructs&) = delete;
     VectorOfVariableSizedStructs& operator=(const VectorOfVariableSizedStructs&) = delete;
 
-    // enable move
-    VectorOfVariableSizedStructs(VectorOfVariableSizedStructs&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    VectorOfVariableSizedStructs& operator=(VectorOfVariableSizedStructs&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    VectorOfVariableSizedStructs(VectorOfVariableSizedStructs&&) noexcept = default;
+    VectorOfVariableSizedStructs& operator=(VectorOfVariableSizedStructs&&) noexcept = default;
 
-    // Member: values [struct_array<ChildVar>]
 
-    inline struct_array<ChildVar> values() const noexcept
+    // Member: values [StructArray<ChildVar>]
+
+    inline StructArray<ChildVar> values() const noexcept
     {
         auto ptr = buffer + _values_offset();
-        return struct_array<ChildVar>::open(ptr, _values_size_aligned(), false);
+        return StructArray<ChildVar>::open(ptr, _values_size_unaligned(), false);
     }
 
-    inline void values(const struct_array<ChildVar>& value) noexcept
+    inline void values(const StructArray<ChildVar>& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set member `values`. Parameter of type `struct_array<ChildVar>` not initialized.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set member `values`. Parameter of type `StructArray<ChildVar>` not initialized.");
         auto dest_ptr = buffer + _values_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, dest_ptr);
@@ -129,7 +89,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _values_calc_size_aligned(const struct_array<ChildVar>& value)
+    static size_t _values_calc_size_aligned(const StructArray<ChildVar>& value)
     {
         return value.fastbin_binary_size();
     }
@@ -137,8 +97,8 @@ public:
     constexpr inline size_t _values_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _values_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -187,8 +147,8 @@ public:
     constexpr inline size_t _str_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -200,7 +160,7 @@ public:
     }
 
     static size_t fastbin_calc_binary_size(
-        const struct_array<ChildVar>& values,
+        const StructArray<ChildVar>& values,
         const std::string_view& str
     )
     {
@@ -226,38 +186,14 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] VectorOfVariableSizedStructs copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] VectorOfVariableSizedStructs copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<VectorOfVariableSizedStructs>
-{
-    static constexpr bool value = true;
-};
+struct is_variable_size<VectorOfVariableSizedStructs> : std::true_type {};
+
+template <>
+struct is_buffer_stored<VectorOfVariableSizedStructs> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::VectorOfVariableSizedStructs& obj)

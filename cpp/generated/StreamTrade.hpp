@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_BufferStored.hpp"
 #include "TradeSide.hpp"
 #include "TickDirection.hpp"
 
@@ -41,18 +42,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class StreamTrade final
+class StreamTrade final : public BufferStored<StreamTrade>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<StreamTrade>::buffer;
+    using BufferStored<StreamTrade>::buffer_size;
+    using BufferStored<StreamTrade>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<StreamTrade>;
+
     StreamTrade(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<StreamTrade>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -62,58 +65,15 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static StreamTrade create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static StreamTrade open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static StreamTrade open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return StreamTrade(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~StreamTrade() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     StreamTrade(const StreamTrade&) = delete;
     StreamTrade& operator=(const StreamTrade&) = delete;
 
-    // enable move
-    StreamTrade(StreamTrade&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    StreamTrade& operator=(StreamTrade&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    StreamTrade(StreamTrade&&) noexcept = default;
+    StreamTrade& operator=(StreamTrade&&) noexcept = default;
+
 
     // Member: server_time [std::int64_t]
 
@@ -216,8 +176,8 @@ public:
     constexpr inline size_t _symbol_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -406,8 +366,8 @@ public:
     constexpr inline size_t _trade_id_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _trade_id_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -478,38 +438,14 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] StreamTrade copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] StreamTrade copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<StreamTrade>
-{
-    static constexpr bool value = false;
-};
+struct is_variable_size<StreamTrade> : std::false_type {};
+
+template <>
+struct is_buffer_stored<StreamTrade> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::StreamTrade& obj)

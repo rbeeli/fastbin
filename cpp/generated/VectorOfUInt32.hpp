@@ -7,6 +7,7 @@
 #include <span>
 #include <string_view>
 #include "_traits.hpp"
+#include "_BufferStored.hpp"
 
 namespace my_models
 {
@@ -26,18 +27,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class VectorOfUInt32 final
+class VectorOfUInt32 final : public BufferStored<VectorOfUInt32>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<VectorOfUInt32>::buffer;
+    using BufferStored<VectorOfUInt32>::buffer_size;
+    using BufferStored<VectorOfUInt32>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<VectorOfUInt32>;
+
     VectorOfUInt32(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<VectorOfUInt32>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -47,65 +50,22 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static VectorOfUInt32 create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static VectorOfUInt32 open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static VectorOfUInt32 open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return VectorOfUInt32(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~VectorOfUInt32() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     VectorOfUInt32(const VectorOfUInt32&) = delete;
     VectorOfUInt32& operator=(const VectorOfUInt32&) = delete;
 
-    // enable move
-    VectorOfUInt32(VectorOfUInt32&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    VectorOfUInt32& operator=(VectorOfUInt32&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    VectorOfUInt32(VectorOfUInt32&&) noexcept = default;
+    VectorOfUInt32& operator=(VectorOfUInt32&&) noexcept = default;
+
 
     // Member: values [std::span<std::uint32_t>]
 
     inline std::span<std::uint32_t> values() const noexcept
     {
         size_t n_bytes = _values_size_unaligned() - 8;
-        size_t count = n_bytes / 4;
+        size_t count = n_bytes >> 2;
         auto ptr = reinterpret_cast<std::uint32_t*>(buffer + _values_offset() + 8);
         return std::span<std::uint32_t>(ptr, count);
     }
@@ -146,8 +106,8 @@ public:
     constexpr inline size_t _values_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _values_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -196,8 +156,8 @@ public:
     constexpr inline size_t _str_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -235,38 +195,14 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] VectorOfUInt32 copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] VectorOfUInt32 copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<VectorOfUInt32>
-{
-    static constexpr bool value = true;
-};
+struct is_variable_size<VectorOfUInt32> : std::true_type {};
+
+template <>
+struct is_buffer_stored<VectorOfUInt32> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::VectorOfUInt32& obj)

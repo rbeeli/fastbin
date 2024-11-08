@@ -11,40 +11,51 @@
 #include <ranges>
 
 #include "_traits.hpp"
+#include "_BufferStored.hpp"
 
 namespace my_models
 {
-/*
-Memory Layout:
-[size_: size_t][count_: size_t][element1_size: size_t][element1: T][element2_size: size_t][element2: T]...
-^                              ^
-buffer points here             bufferptr() points here
-
-- size_ stores total size of the struct_array in bytes, which includes size_, count_ and all elements
-- Elements are stored sequentially
-- No separate allocations - everything in one contiguous block
-- Total size = 2 * sizeof(size_t) + sum(element_size for each element)
-*/
+/**
+ * A contiguous array of elements of type T.
+ * 
+ * Memory Layout:
+ * [size_: size_t][count_: size_t][element1_size: size_t][element1: T][element2_size: size_t][element2: T]...
+ * ^                              ^
+ * buffer points here             bufferptr() points here
+ * 
+ * - size_ stores total size of the StructArray in bytes, which includes size_, count_ and all elements
+ * - Elements are stored sequentially
+ * - No separate allocations - everything in one contiguous block
+ * - Total size = 2 * sizeof(size_t) + sum(element_size for each element)
+ */
 template <typename T>
-class struct_array
+class StructArray final : public BufferStored<StructArray<T>>
 {
 public:
-    std::byte* buffer{nullptr}; // Points to the start of the memory block
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<StructArray<T>>::buffer;
+    using BufferStored<StructArray<T>>::buffer_size;
+    using BufferStored<StructArray<T>>::owns_buffer;
 
-private:
-    inline size_t& size_ref() const
+protected:
+    friend class BufferStored<StructArray<T>>;
+
+    // constructor forwards to base class
+    StructArray(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+        : BufferStored<StructArray<T>>(buffer, buffer_size, owns_buffer)
+    {
+    }
+
+    inline size_t& size_ref() const noexcept
     {
         return *reinterpret_cast<size_t*>(buffer);
     }
 
-    inline size_t& count_ref() const
+    inline size_t& count_ref() const noexcept
     {
         return *reinterpret_cast<size_t*>(buffer + sizeof(size_t));
     }
 
-    inline std::byte* bufferptr() const
+    inline std::byte* bufferptr() const noexcept
     {
         return buffer + 2 * sizeof(size_t);
     }
@@ -82,20 +93,22 @@ private:
         return U::open(current, size, false);
     }
 
-    // private constructor
-    struct_array(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
-    {
-    }
-
 public:
-    static struct_array<T> create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
+    // copy
+    StructArray(const StructArray&) = delete;
+    StructArray& operator=(const StructArray&) = delete;
+
+    // move
+    StructArray(StructArray&&) noexcept = default;
+    StructArray& operator=(StructArray&&) noexcept = default;
+
+    static StructArray<T> create(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
     {
         // Zero-initialize the buffer
         std::memset(buffer, 0, buffer_size);
 
-        // Create struct_array object
-        auto arr = struct_array<T>(buffer, buffer_size, owns_buffer);
+        // Create StructArray object in the buffer
+        auto arr = StructArray<T>(buffer, buffer_size, owns_buffer);
 
         // Initial size is 2 * sizeof(size_t) for size_ and count_
         arr.size_ref() = 2 * sizeof(size_t);
@@ -105,62 +118,10 @@ public:
         return arr;
     }
 
-    static struct_array<T> create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static struct_array<T> open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
-
-    static struct_array<T> open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return open(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    // destructor
-    ~struct_array() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
-    // disable copy
-    struct_array(const struct_array&) = delete;
-    struct_array& operator=(const struct_array&) = delete;
-
-    // enable move
-    struct_array(struct_array&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    struct_array& operator=(struct_array&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-                delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
-
     /**
      * Returns the number of elements in the array.
      */
-    inline size_t size() const
+    inline size_t size() const noexcept
     {
         return count_ref();
     }
@@ -170,7 +131,7 @@ public:
         size_t el_size = element.fastbin_calc_binary_size();
 
         // Check if there is enough space in the buffer
-        assert(buffer_size - size_ref() >= el_size && "Buffer overflow in struct_array append");
+        assert(buffer_size - size_ref() >= el_size && "Buffer overflow in StructArray append");
 
         // Write element to the end of the buffer
         std::byte* dest = bufferptr() + (size_ref() - 2 * sizeof(size_t)); // Adjust for header size
@@ -185,18 +146,18 @@ public:
 
     inline size_t fastbin_calc_binary_size() const noexcept
     {
-        // Size of the struct_array is already stored in the buffer
+        // Size of the StructArray is already stored in the buffer
         return size_ref();
     }
 
     /**
-     * Calculates the binary size of the struct_array with the given elements.
-     * The elements must be of the same type as the struct_array.
-     * This function is used to pre-calculate the size before creating the struct_array.
+     * Calculates the binary size of the StructArray with the given elements.
+     * The elements must be of the same type as the StructArray.
+     * This function is used to pre-calculate the size before creating the StructArray.
      */
     template <std::ranges::range Container>
         requires std::same_as<std::ranges::range_value_t<Container>, T>
-    static size_t fastbin_calc_binary_size(const Container& iterable)
+    static inline size_t fastbin_calc_binary_size(const Container& iterable) noexcept
     {
         size_t size = 2 * sizeof(size_t);
         for (const auto& item : iterable)
@@ -205,7 +166,7 @@ public:
     }
 
     /**
-     * Returns the stored (aligned) binary size of the object.
+     * Returns the stored binary size of the object (always aligned to 8 bytes).
      * This function should only be called after `fastbin_finalize()`.
      */
     inline size_t fastbin_binary_size() const noexcept
@@ -220,14 +181,14 @@ public:
      */
     inline void fastbin_finalize() noexcept
     {
-        // no-op for struct_array - size is already stored when appending elements
+        // no-op for StructArray - size is already stored when appending elements
     }
 
     /**
      * Copies the object to a new buffer.
      * The new buffer must be large enough to hold all data.
      */
-    [[nodiscard]] struct_array<T> copy(
+    [[nodiscard]] StructArray<T> copy(
         std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer
     ) const noexcept
     {
@@ -241,7 +202,7 @@ public:
      * Creates a copy of this object.
      * The returned copy is completely independent of the original object.
      */
-    [[nodiscard]] struct_array<T> copy() const noexcept
+    [[nodiscard]] StructArray<T> copy() const noexcept
     {
         size_t size = fastbin_binary_size();
         auto dest_buffer = new std::byte[size];
@@ -263,11 +224,11 @@ public:
     class iterator
     {
     private:
-        struct_array* span_;
+        StructArray* span_;
         size_t index_;
 
     public:
-        iterator(struct_array* span, size_t index) //
+        iterator(StructArray* span, size_t index) //
             : span_(span), index_(index)
         {
         }
@@ -298,5 +259,12 @@ public:
     {
         return iterator(this, count_ref());
     }
+};
+
+// Type traits
+template <typename T>
+struct is_variable_size<StructArray<T>>
+{
+    static constexpr bool value = true;
 };
 }; // namespace my_models

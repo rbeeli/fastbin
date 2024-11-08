@@ -7,7 +7,8 @@
 #include <span>
 #include <string_view>
 #include "_traits.hpp"
-#include "_struct_array.hpp"
+#include "_BufferStored.hpp"
+#include "StructArray.hpp"
 
 namespace my_models
 {
@@ -19,7 +20,7 @@ namespace my_models
  *
  * Members in order
  * ================
- * - `values` [`struct_array<ChildFixed>`] (variable)
+ * - `values` [`StructArray<ChildFixed>`] (variable)
  * - `str` [`std::string_view`] (variable)
  *
  * The `finalize()` method MUST be called after all setter methods have been called.
@@ -27,18 +28,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class VectorOfFixedSizedStructs final
+class VectorOfFixedSizedStructs final : public BufferStored<VectorOfFixedSizedStructs>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<VectorOfFixedSizedStructs>::buffer;
+    using BufferStored<VectorOfFixedSizedStructs>::buffer_size;
+    using BufferStored<VectorOfFixedSizedStructs>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<VectorOfFixedSizedStructs>;
+
     VectorOfFixedSizedStructs(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<VectorOfFixedSizedStructs>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -48,70 +51,27 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static VectorOfFixedSizedStructs create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static VectorOfFixedSizedStructs open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static VectorOfFixedSizedStructs open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return VectorOfFixedSizedStructs(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~VectorOfFixedSizedStructs() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     VectorOfFixedSizedStructs(const VectorOfFixedSizedStructs&) = delete;
     VectorOfFixedSizedStructs& operator=(const VectorOfFixedSizedStructs&) = delete;
 
-    // enable move
-    VectorOfFixedSizedStructs(VectorOfFixedSizedStructs&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    VectorOfFixedSizedStructs& operator=(VectorOfFixedSizedStructs&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    VectorOfFixedSizedStructs(VectorOfFixedSizedStructs&&) noexcept = default;
+    VectorOfFixedSizedStructs& operator=(VectorOfFixedSizedStructs&&) noexcept = default;
 
-    // Member: values [struct_array<ChildFixed>]
 
-    inline struct_array<ChildFixed> values() const noexcept
+    // Member: values [StructArray<ChildFixed>]
+
+    inline StructArray<ChildFixed> values() const noexcept
     {
         auto ptr = buffer + _values_offset();
-        return struct_array<ChildFixed>::open(ptr, _values_size_aligned(), false);
+        return StructArray<ChildFixed>::open(ptr, _values_size_unaligned(), false);
     }
 
-    inline void values(const struct_array<ChildFixed>& value) noexcept
+    inline void values(const StructArray<ChildFixed>& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set member `values`. Parameter of type `struct_array<ChildFixed>` not initialized.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set member `values`. Parameter of type `StructArray<ChildFixed>` not initialized.");
         auto dest_ptr = buffer + _values_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, dest_ptr);
@@ -128,7 +88,7 @@ public:
         return stored_size;
     }
 
-    static size_t _values_calc_size_aligned(const struct_array<ChildFixed>& value)
+    static size_t _values_calc_size_aligned(const StructArray<ChildFixed>& value)
     {
         return value.fastbin_binary_size();
     }
@@ -184,8 +144,8 @@ public:
     constexpr inline size_t _str_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -197,7 +157,7 @@ public:
     }
 
     static size_t fastbin_calc_binary_size(
-        const struct_array<ChildFixed>& values,
+        const StructArray<ChildFixed>& values,
         const std::string_view& str
     )
     {
@@ -223,38 +183,14 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] VectorOfFixedSizedStructs copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] VectorOfFixedSizedStructs copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<VectorOfFixedSizedStructs>
-{
-    static constexpr bool value = true;
-};
+struct is_variable_size<VectorOfFixedSizedStructs> : std::true_type {};
+
+template <>
+struct is_buffer_stored<VectorOfFixedSizedStructs> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::VectorOfFixedSizedStructs& obj)

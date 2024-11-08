@@ -113,6 +113,13 @@
         "values": "vector<struct:ChildVar>",
         "str": "string"
       }
+    },
+    "Variants": {
+      "members": {
+        "primitives": "Variant<int32, int64, uint8>",
+        "primitives_and_string": "Variant<string, float64, bool>",
+        "structs": "Variant<struct:ChildFixed, struct:ChildVar>"
+      }
     }
   }
 }

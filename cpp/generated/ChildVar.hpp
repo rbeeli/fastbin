@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_BufferStored.hpp"
 
 namespace my_models
 {
@@ -27,18 +28,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class ChildVar final
+class ChildVar final : public BufferStored<ChildVar>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<ChildVar>::buffer;
+    using BufferStored<ChildVar>::buffer_size;
+    using BufferStored<ChildVar>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<ChildVar>;
+
     ChildVar(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<ChildVar>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -48,58 +51,15 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static ChildVar create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static ChildVar open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static ChildVar open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return ChildVar(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~ChildVar() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     ChildVar(const ChildVar&) = delete;
     ChildVar& operator=(const ChildVar&) = delete;
 
-    // enable move
-    ChildVar(ChildVar&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    ChildVar& operator=(ChildVar&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    ChildVar(ChildVar&&) noexcept = default;
+    ChildVar& operator=(ChildVar&&) noexcept = default;
+
 
     // Member: field1 [std::int32_t]
 
@@ -174,8 +134,8 @@ public:
     constexpr inline size_t _field2_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _field2_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -211,38 +171,14 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] ChildVar copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] ChildVar copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<ChildVar>
-{
-    static constexpr bool value = true;
-};
+struct is_variable_size<ChildVar> : std::true_type {};
+
+template <>
+struct is_buffer_stored<ChildVar> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::ChildVar& obj)

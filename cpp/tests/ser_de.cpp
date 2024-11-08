@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <cstddef>
 #include <iostream>
@@ -133,14 +134,14 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
 
     constexpr size_t child_size = my_models::ChildFixed::fastbin_fixed_size();
 
-    // Calculate total needed size for struct_array:
+    // Calculate total needed size for StructArray:
     // 2 * sizeof(size_t) for size_ and count_
     // Plus space for 3 ChildFixed objects
     const size_t array_buffer_size = 2 * sizeof(size_t) + (3 * child_size);
     byte* array_buffer = new byte[array_buffer_size]();
 
-    // Create struct_array with its own buffer
-    auto arr = my_models::struct_array<my_models::ChildFixed>::create(
+    // Create StructArray with its own buffer
+    auto arr = my_models::StructArray<my_models::ChildFixed>::create(
         array_buffer, array_buffer_size, true // owns its buffer
     );
 
@@ -158,11 +159,11 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
     }
     arr.fastbin_finalize();
 
-    // Copy the finalized struct_array to the VectorOfFixedSizedStructs
+    // Copy the finalized StructArray to the VectorOfFixedSizedStructs
     v.values(arr);
 
     EXPECT_EQ(
-        my_models::struct_array<my_models::ChildFixed>::fastbin_calc_binary_size(values),
+        my_models::StructArray<my_models::ChildFixed>::fastbin_calc_binary_size(values),
         arr.buffer_size
     );
 
@@ -197,8 +198,8 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_inplace_buffer)
     // create outer struct
     auto v = my_models::VectorOfFixedSizedStructs::create(buffer, buffer_size, true); // owns buffer
 
-    // Create struct_array using outer struct buffer
-    auto arr = my_models::struct_array<my_models::ChildFixed>::create(
+    // Create StructArray using outer struct buffer
+    auto arr = my_models::StructArray<my_models::ChildFixed>::create(
         v.values().buffer, 1000, false // non-owning directly write to outer buffer
     );
 
@@ -217,7 +218,7 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_inplace_buffer)
     }
     arr.fastbin_finalize();
 
-    // // Copy not needed anymore, struct_array is inplace
+    // // Copy not needed anymore, StructArray is inplace
     // v.values(arr);
 
     v.str("test");
@@ -249,14 +250,14 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
     size_t child_size = my_models::ChildVar::fastbin_calc_binary_size("var_text");
     EXPECT_EQ(child_size, 32);
 
-    // Calculate total needed size for struct_array:
+    // Calculate total needed size for StructArray:
     // 2 * sizeof(size_t) for size_ and count_
     // Plus space for 3 ChildVar objects
     const size_t array_buffer_size = 2 * sizeof(size_t) + (3 * child_size);
     byte* array_buffer = new byte[array_buffer_size]();
 
-    // Create struct_array with its own buffer
-    auto arr = my_models::struct_array<my_models::ChildVar>::create(
+    // Create StructArray with its own buffer
+    auto arr = my_models::StructArray<my_models::ChildVar>::create(
         array_buffer, array_buffer_size, true // owns its buffer
     );
 
@@ -275,7 +276,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
     arr.fastbin_finalize();
 
     EXPECT_EQ(
-        my_models::struct_array<my_models::ChildVar>::fastbin_calc_binary_size(values),
+        my_models::StructArray<my_models::ChildVar>::fastbin_calc_binary_size(values),
         arr.buffer_size
     );
 
@@ -289,7 +290,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
         buffer, buffer_size, true
     ); // owns buffer
 
-    // Copy the finalized struct_array to the VectorOfVariableSizedStructs
+    // Copy the finalized StructArray to the VectorOfVariableSizedStructs
     v.values(arr);
 
     v.str("test");
@@ -325,8 +326,8 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
         buffer, buffer_size, true
     ); // owns buffer
 
-    // Create struct_array using outer struct buffer
-    auto arr = my_models::struct_array<my_models::ChildVar>::create(
+    // Create StructArray using outer struct buffer
+    auto arr = my_models::StructArray<my_models::ChildVar>::create(
         v.values().buffer, 1000, false // non-owning directly write to outer buffer
     );
 
@@ -348,7 +349,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
     }
     arr.fastbin_finalize();
 
-    // // Copy not needed anymore, struct_array is inplace
+    // // Copy not needed anymore, StructArray is inplace
     // v.values(arr);
 
     v.str("test");
@@ -372,4 +373,58 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), "var_text");
     }
+}
+
+TEST(fastbin, ser_de_Variants)
+{
+    // primitives
+    byte* buffer1 = new byte[64];
+    auto var1 = my_models::Variant<int32_t, int64_t, uint8_t>::create(buffer1, 64, true);
+    var1.set<uint8_t>(42);
+
+    // primitives_and_string
+    byte* buffer2 = new byte[59];
+    auto var2 = my_models::Variant<std::string_view, double, bool>::create(buffer2, 59, true);
+    var2.set<std::string_view>("test1");
+
+    // structs
+    size_t struct_size = my_models::ChildVar::fastbin_calc_binary_size("hello there");
+    byte* buffer_struct = new byte[struct_size];
+    auto child = my_models::ChildVar::create(buffer_struct, struct_size, true);
+    child.field1(123);
+    child.field2("hello there");
+    child.fastbin_finalize();
+
+    byte* buffer3 = new byte[512];
+    auto var3 = my_models::Variant<my_models::ChildFixed, my_models::ChildVar>::create(buffer3, 512, true);
+    var3.set<my_models::ChildVar>(child);
+
+    // my_models::Variants
+    const size_t buffer_size = my_models::Variants::fastbin_calc_binary_size(var1, var2, var3);
+    byte* buffer = new byte[buffer_size]();
+    auto v = my_models::Variants::create(buffer, buffer_size, true); // owns buffer
+
+    v.primitives(var1);
+    v.primitives_and_string(var2);
+    v.structs(var3);
+    v.fastbin_finalize();
+
+    EXPECT_EQ(v.fastbin_binary_size(), v.fastbin_calc_binary_size());
+    EXPECT_EQ(v._primitives_offset(), 8); // variable sized
+    EXPECT_EQ(v._primitives_size_aligned(), 8 + 8 + 8);
+    EXPECT_EQ(decltype(v)::_primitives_calc_size_aligned(var1), 8 + 8 + 8);
+
+    // primitives
+    EXPECT_EQ(v.primitives().index(), 2);
+    EXPECT_EQ(v.primitives().get<uint8_t>(), 42);
+
+    // primitives_and_string
+    EXPECT_EQ(v.primitives_and_string().index(), 0);
+    EXPECT_EQ(v.primitives_and_string().get<std::string_view>(), "test1");
+
+    // primitives_and_string
+    EXPECT_EQ(v.structs().index(), 1);
+    auto child_var = v.structs().get<my_models::ChildVar>();
+    EXPECT_EQ(child_var.field1(), 123);
+    EXPECT_EQ(child_var.field2(), "hello there");
 }

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_BufferStored.hpp"
 #include "OrderbookType.hpp"
 
 namespace my_models
@@ -42,18 +43,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class StreamOrderbook final
+class StreamOrderbook final : public BufferStored<StreamOrderbook>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<StreamOrderbook>::buffer;
+    using BufferStored<StreamOrderbook>::buffer_size;
+    using BufferStored<StreamOrderbook>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<StreamOrderbook>;
+
     StreamOrderbook(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<StreamOrderbook>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -63,58 +66,15 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static StreamOrderbook create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static StreamOrderbook open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static StreamOrderbook open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return StreamOrderbook(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~StreamOrderbook() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     StreamOrderbook(const StreamOrderbook&) = delete;
     StreamOrderbook& operator=(const StreamOrderbook&) = delete;
 
-    // enable move
-    StreamOrderbook(StreamOrderbook&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    StreamOrderbook& operator=(StreamOrderbook&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    StreamOrderbook(StreamOrderbook&&) noexcept = default;
+    StreamOrderbook& operator=(StreamOrderbook&&) noexcept = default;
+
 
     // Member: server_time [std::int64_t]
 
@@ -301,8 +261,8 @@ public:
     constexpr inline size_t _symbol_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -367,7 +327,7 @@ public:
     inline std::span<double> bid_prices() const noexcept
     {
         size_t n_bytes = _bid_prices_size_unaligned() - 8;
-        size_t count = n_bytes / 8;
+        size_t count = n_bytes >> 3;
         auto ptr = reinterpret_cast<double*>(buffer + _bid_prices_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -410,7 +370,7 @@ public:
     inline std::span<double> bid_quantities() const noexcept
     {
         size_t n_bytes = _bid_quantities_size_unaligned() - 8;
-        size_t count = n_bytes / 8;
+        size_t count = n_bytes >> 3;
         auto ptr = reinterpret_cast<double*>(buffer + _bid_quantities_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -453,7 +413,7 @@ public:
     inline std::span<double> ask_prices() const noexcept
     {
         size_t n_bytes = _ask_prices_size_unaligned() - 8;
-        size_t count = n_bytes / 8;
+        size_t count = n_bytes >> 3;
         auto ptr = reinterpret_cast<double*>(buffer + _ask_prices_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -496,7 +456,7 @@ public:
     inline std::span<double> ask_quantities() const noexcept
     {
         size_t n_bytes = _ask_quantities_size_unaligned() - 8;
-        size_t count = n_bytes / 8;
+        size_t count = n_bytes >> 3;
         auto ptr = reinterpret_cast<double*>(buffer + _ask_quantities_offset() + 8);
         return std::span<double>(ptr, count);
     }
@@ -574,38 +534,14 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] StreamOrderbook copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] StreamOrderbook copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<StreamOrderbook>
-{
-    static constexpr bool value = true;
-};
+struct is_variable_size<StreamOrderbook> : std::true_type {};
+
+template <>
+struct is_buffer_stored<StreamOrderbook> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::StreamOrderbook& obj)

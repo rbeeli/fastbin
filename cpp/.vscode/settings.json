@@ -66,6 +66,14 @@
         "system_error": "cpp",
         "thread": "cpp",
         "variant": "cpp",
-        "__verbose_abort": "cpp"
+        "__verbose_abort": "cpp",
+        "cassert": "cpp",
+        "ranges": "cpp",
+        "__bit_reference": "cpp",
+        "__hash_table": "cpp",
+        "__split_buffer": "cpp",
+        "__tree": "cpp",
+        "queue": "cpp",
+        "stack": "cpp"
     }
 }

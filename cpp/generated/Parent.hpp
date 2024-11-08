@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_BufferStored.hpp"
 #include "ChildFixed.hpp"
 #include "ChildVar.hpp"
 
@@ -31,18 +32,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class Parent final
+class Parent final : public BufferStored<Parent>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<Parent>::buffer;
+    using BufferStored<Parent>::buffer_size;
+    using BufferStored<Parent>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<Parent>;
+
     Parent(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<Parent>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -52,58 +55,15 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static Parent create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static Parent open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static Parent open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return Parent(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~Parent() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     Parent(const Parent&) = delete;
     Parent& operator=(const Parent&) = delete;
 
-    // enable move
-    Parent(Parent&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    Parent& operator=(Parent&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    Parent(Parent&&) noexcept = default;
+    Parent& operator=(Parent&&) noexcept = default;
+
 
     // Member: field1 [std::int32_t]
 
@@ -143,7 +103,7 @@ public:
 
     inline void child1(const ChildFixed& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set member `child1`, parameter struct of type `ChildFixed` not finalized. Call fastbin_finalize() on struct after creation.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set member `child1`, parameter of struct type `ChildFixed` not finalized. Call fastbin_finalize() on struct after creation.");
         auto dest_ptr = buffer + _child1_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, dest_ptr);
@@ -175,7 +135,7 @@ public:
 
     inline void child2(const ChildVar& value) noexcept
     {
-        assert(value.fastbin_binary_size() > 0 && "Cannot set member `child2`, parameter struct of type `ChildVar` not finalized. Call fastbin_finalize() on struct after creation.");
+        assert(value.fastbin_binary_size() > 0 && "Cannot set member `child2`, parameter of struct type `ChildVar` not finalized. Call fastbin_finalize() on struct after creation.");
         auto dest_ptr = buffer + _child2_offset();
         size_t size = value.fastbin_binary_size();
         std::copy(value.buffer, value.buffer + size, dest_ptr);
@@ -242,8 +202,8 @@ public:
     constexpr inline size_t _str_size_unaligned() const noexcept
     {
         size_t stored_size = *reinterpret_cast<size_t*>(buffer + _str_offset());
-        size_t aligned_diff = stored_size >> 56;
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
+        size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
     }
 
@@ -281,38 +241,14 @@ public:
     {
         *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] Parent copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] Parent copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<Parent>
-{
-    static constexpr bool value = true;
-};
+struct is_variable_size<Parent> : std::true_type {};
+
+template <>
+struct is_buffer_stored<Parent> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::Parent& obj)

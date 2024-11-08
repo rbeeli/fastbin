@@ -7,6 +7,7 @@
 #include <span>
 #include <cstdint>
 #include "_traits.hpp"
+#include "_BufferStored.hpp"
 
 namespace my_models
 {
@@ -25,18 +26,20 @@ namespace my_models
  * It is the responsibility of the caller to ensure that the buffer is
  * large enough to hold all data.
  */
-class ChildFixed final
+class ChildFixed final : public BufferStored<ChildFixed>
 {
 public:
-    std::byte* buffer{nullptr};
-    size_t buffer_size{0};
-    bool owns_buffer{false};
+    using BufferStored<ChildFixed>::buffer;
+    using BufferStored<ChildFixed>::buffer_size;
+    using BufferStored<ChildFixed>::owns_buffer;
 
-private:
+protected:
+    friend class BufferStored<ChildFixed>;
+
     ChildFixed(
         std::byte* buffer, size_t buffer_size, bool owns_buffer
     ) noexcept
-        : buffer(buffer), buffer_size(buffer_size), owns_buffer(owns_buffer)
+        : BufferStored<ChildFixed>(buffer, buffer_size, owns_buffer)
     {
     }
 
@@ -46,58 +49,15 @@ public:
         std::memset(buffer, 0, buffer_size);
         return {buffer, buffer_size, owns_buffer};
     }
-
-    static ChildFixed create(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return create(buffer.data(), buffer.size(), owns_buffer);
-    }
-
-    static ChildFixed open(std::byte* buffer, size_t buffer_size, bool owns_buffer) noexcept
-    {
-        return {buffer, buffer_size, owns_buffer};
-    }
     
-    static ChildFixed open(std::span<std::byte> buffer, bool owns_buffer) noexcept
-    {
-        return ChildFixed(buffer.data(), buffer.size(), owns_buffer);
-    }
-    
-    // destructor
-    ~ChildFixed() noexcept
-    {
-        if (owns_buffer && buffer != nullptr)
-        {
-            delete[] buffer;
-            buffer = nullptr;
-        }
-    }
-
     // disable copy
     ChildFixed(const ChildFixed&) = delete;
     ChildFixed& operator=(const ChildFixed&) = delete;
 
-    // enable move
-    ChildFixed(ChildFixed&& other) noexcept
-        : buffer(other.buffer), buffer_size(other.buffer_size), owns_buffer(other.owns_buffer)
-    {
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-    }
-    ChildFixed& operator=(ChildFixed&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (owns_buffer && buffer != nullptr)
-               delete[] buffer;
-            buffer = other.buffer;
-            buffer_size = other.buffer_size;
-            owns_buffer = other.owns_buffer;
-            other.buffer = nullptr;
-            other.buffer_size = 0;
-            other.owns_buffer = false;
-        }
-        return *this;
-    }
+    // inherit move
+    ChildFixed(ChildFixed&&) noexcept = default;
+    ChildFixed& operator=(ChildFixed&&) noexcept = default;
+
 
     // Member: field1 [std::int32_t]
 
@@ -189,38 +149,14 @@ public:
     inline void fastbin_finalize() noexcept
     {
     }
-
-    /**
-     * Copies the object to a new buffer.
-     * The new buffer must be large enough to hold all data.
-     */
-    [[nodiscard]] ChildFixed copy(std::byte* dest_buffer, size_t dest_buffer_size, bool owns_buffer) const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        assert(dest_buffer_size >= size && "New buffer size too small.");
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, dest_buffer_size, owns_buffer};
-    }
-
-    /**
-     * Creates a copy of this object.
-     * The returned copy is completely independent of the original object.
-     */
-    [[nodiscard]] ChildFixed copy() const noexcept
-    {
-        size_t size = fastbin_binary_size();
-        auto dest_buffer = new std::byte[size];
-        std::memcpy(dest_buffer, buffer, size);
-        return {dest_buffer, size, true};
-    }
 };
 
 // Type traits
 template <>
-struct is_variable_size<ChildFixed>
-{
-    static constexpr bool value = false;
-};
+struct is_variable_size<ChildFixed> : std::false_type {};
+
+template <>
+struct is_buffer_stored<ChildFixed> : std::true_type {};
 }; // namespace my_models
 
 inline std::ostream& operator<<(std::ostream& os, const my_models::ChildFixed& obj)

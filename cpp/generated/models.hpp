@@ -12,3 +12,4 @@
 #include "VectorOfUInt32.hpp"
 #include "VectorOfFixedSizedStructs.hpp"
 #include "VectorOfVariableSizedStructs.hpp"
+#include "Variants.hpp"
