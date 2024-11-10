@@ -81,7 +81,7 @@ protected:
             throw std::out_of_range("Index out of bounds");
 
         std::byte* current = bufferptr();
-        size_t size = 0;
+        size_t size = *reinterpret_cast<const size_t*>(current);
 
         // Need to walk through the buffer for variable-sized elements
         for (size_t i = 0; i < n; ++i)
