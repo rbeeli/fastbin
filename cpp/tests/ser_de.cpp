@@ -196,6 +196,7 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
     EXPECT_EQ(v.values().size(), values.size());
     for (size_t i = 0; i < values.size(); ++i)
     {
+        EXPECT_TRUE(v.values()[i].buffer_size > 0);
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), i * 10);
     }
@@ -259,6 +260,7 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_inplace_buffer)
     EXPECT_EQ(v.values().size(), values.size());
     for (size_t i = 0; i < values.size(); ++i)
     {
+        EXPECT_TRUE(v.values()[i].buffer_size > 0);
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), i * 10);
     }
@@ -267,6 +269,7 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_inplace_buffer)
     size_t i = 0;
     for (const auto item : v.values())
     {
+        EXPECT_TRUE(v.values()[i].buffer_size > 0);
         EXPECT_EQ(item.buffer, v.values()[i].buffer);
         i++;
     }
@@ -340,6 +343,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
     EXPECT_EQ(v.values().size(), 3);
     for (size_t i = 0; i < 3; ++i)
     {
+        EXPECT_TRUE(v.values()[i].buffer_size > 0);
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), "var_text");
     }
@@ -348,6 +352,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
     size_t i = 0;
     for (const auto item : v.values())
     {
+        EXPECT_TRUE(v.values()[i].buffer_size > 0);
         EXPECT_EQ(item.buffer, v.values()[i].buffer);
         i++;
     }
@@ -412,6 +417,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
     EXPECT_EQ(v.values().size(), n_children);
     for (size_t i = 0; i < n_children; ++i)
     {
+        EXPECT_TRUE(v.values()[i].buffer_size > 0);
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), "var_text");
     }
@@ -420,6 +426,7 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
     size_t i = 0;
     for (const auto item : v.values())
     {
+        EXPECT_TRUE(v.values()[i].buffer_size > 0);
         EXPECT_EQ(item.buffer, v.values()[i].buffer);
         i++;
     }
