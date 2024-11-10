@@ -121,7 +121,18 @@ TEST(fastbin, ser_de_VectorOfUInt32)
     EXPECT_NE(v.values().data(), reinterpret_cast<uint32_t*>(values.data()));
     EXPECT_EQ(v.values().size(), values.size());
     for (size_t i = 0; i < values.size(); ++i)
+    {
         EXPECT_EQ(v.values()[i], values[i]);
+    }
+
+    // test iterator
+    size_t i = 0;
+    for (const auto item : v.values())
+    {
+        EXPECT_EQ(item, values[i]);
+        i++;
+    }
+    EXPECT_EQ(i, values.size());
 }
 
 TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
@@ -188,6 +199,15 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), i * 10);
     }
+
+    // test iterator
+    size_t i = 0;
+    for (const auto item : v.values())
+    {
+        EXPECT_EQ(item.buffer, v.values()[i].buffer);
+        i++;
+    }
+    EXPECT_EQ(i, values.size());
 }
 
 TEST(fastbin, ser_de_VectorOfFixedSizedStructs_inplace_buffer)
@@ -242,6 +262,15 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_inplace_buffer)
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), i * 10);
     }
+
+    // test iterator
+    size_t i = 0;
+    for (const auto item : v.values())
+    {
+        EXPECT_EQ(item.buffer, v.values()[i].buffer);
+        i++;
+    }
+    EXPECT_EQ(i, values.size());
 }
 
 TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
@@ -314,6 +343,15 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_own_buffer)
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), "var_text");
     }
+
+    // test iterator
+    size_t i = 0;
+    for (const auto item : v.values())
+    {
+        EXPECT_EQ(item.buffer, v.values()[i].buffer);
+        i++;
+    }
+    EXPECT_EQ(i, values.size());
 }
 
 TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
@@ -335,17 +373,21 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
     size_t child_size = my_models::ChildVar::fastbin_calc_binary_size("var_text");
     EXPECT_EQ(child_size, 32);
 
-    vector<my_models::ChildVar> values;
-    for (uint32_t i = 0; i < 3; ++i)
-    {
-        byte* buf = new byte[child_size]();
-        auto child = my_models::ChildVar::create(buf, child_size, true); // owns buffer
-        child.field1(i);
-        child.field2("var_text");
-        child.fastbin_finalize();
+    const auto n_children = 3;
 
-        arr.append(child);
-        values.emplace_back(std::move(child));
+    {
+        vector<my_models::ChildVar> values;
+        for (uint32_t i = 0; i < n_children; ++i)
+        {
+            byte* buf = new byte[child_size]();
+            auto child = my_models::ChildVar::create(buf, child_size, true); // owns buffer
+            child.field1(i);
+            child.field2("var_text");
+            child.fastbin_finalize();
+
+            arr.append(child);
+            values.emplace_back(std::move(child));
+        }
     }
     arr.fastbin_finalize();
 
@@ -367,12 +409,21 @@ TEST(fastbin, ser_de_VectorOfVariableSizedStructs_inplace_buffer)
         v._values_offset() + arr.fastbin_binary_size() + v._str_size_aligned()
     );
 
-    EXPECT_EQ(v.values().size(), values.size());
-    for (size_t i = 0; i < values.size(); ++i)
+    EXPECT_EQ(v.values().size(), n_children);
+    for (size_t i = 0; i < n_children; ++i)
     {
         EXPECT_EQ(v.values()[i].field1(), i);
         EXPECT_EQ(v.values()[i].field2(), "var_text");
     }
+
+    // test iterator
+    size_t i = 0;
+    for (const auto item : v.values())
+    {
+        EXPECT_EQ(item.buffer, v.values()[i].buffer);
+        i++;
+    }
+    EXPECT_EQ(i, n_children);
 }
 
 TEST(fastbin, ser_de_Variants)
@@ -396,7 +447,9 @@ TEST(fastbin, ser_de_Variants)
     child.fastbin_finalize();
 
     byte* buffer3 = new byte[512];
-    auto var3 = my_models::Variant<my_models::ChildFixed, my_models::ChildVar>::create(buffer3, 512, true);
+    auto var3 = my_models::Variant<my_models::ChildFixed, my_models::ChildVar>::create(
+        buffer3, 512, true
+    );
     var3.set<my_models::ChildVar>(child);
 
     // my_models::Variants

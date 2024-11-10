@@ -224,12 +224,12 @@ public:
     class iterator
     {
     private:
-        StructArray* span_;
+        StructArray* arr_;
         size_t index_;
 
     public:
-        iterator(StructArray* span, size_t index) //
-            : span_(span), index_(index)
+        iterator(StructArray* arr, size_t index) //
+            : arr_(arr), index_(index)
         {
         }
 
@@ -244,9 +244,9 @@ public:
             return index_ != other.index_;
         }
 
-        T& operator*()
+        T operator*()
         {
-            return get_nth_element(index_);
+            return arr_->get_nth_element(index_);
         }
     };
 
