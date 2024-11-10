@@ -60,20 +60,29 @@ protected:
         return buffer + 2 * sizeof(size_t);
     }
 
-    // For fixed-size types
+    // Fixed-size types - non-const version
     template <typename U = T>
     typename std::enable_if<!is_variable_size<U>::value, U>::type get_nth_element(size_t n)
     {
         if (n >= count_ref())
             throw std::out_of_range("Index out of bounds");
 
-        // For fixed-size types, we can calculate the offset directly
         std::byte* ptr = bufferptr() + n * U::fastbin_fixed_size();
-
         return U::open(ptr, U::fastbin_fixed_size(), false);
     }
 
-    // For variable-size types
+    // Fixed-size types - const version
+    template <typename U = T>
+    typename std::enable_if<!is_variable_size<U>::value, U>::type get_nth_element(size_t n) const
+    {
+        if (n >= count_ref())
+            throw std::out_of_range("Index out of bounds");
+
+        const std::byte* ptr = bufferptr() + n * U::fastbin_fixed_size();
+        return U::open(const_cast<std::byte*>(ptr), U::fastbin_fixed_size(), false);
+    }
+
+    // Variable-size types - non-const version
     template <typename U = T>
     typename std::enable_if<is_variable_size<U>::value, U>::type get_nth_element(size_t n)
     {
@@ -83,7 +92,6 @@ protected:
         std::byte* current = bufferptr();
         size_t size = *reinterpret_cast<const size_t*>(current);
 
-        // Need to walk through the buffer for variable-sized elements
         for (size_t i = 0; i < n; ++i)
         {
             size = *reinterpret_cast<const size_t*>(current);
@@ -91,6 +99,25 @@ protected:
         }
 
         return U::open(current, size, false);
+    }
+
+    // Variable-size types - const version
+    template <typename U = T>
+    typename std::enable_if<is_variable_size<U>::value, U>::type get_nth_element(size_t n) const
+    {
+        if (n >= count_ref())
+            throw std::out_of_range("Index out of bounds");
+
+        const std::byte* current = bufferptr();
+        size_t size = *reinterpret_cast<const size_t*>(current);
+
+        for (size_t i = 0; i < n; ++i)
+        {
+            size = *reinterpret_cast<const size_t*>(current);
+            current += size;
+        }
+
+        return U::open(const_cast<std::byte*>(current), size, false);
     }
 
 public:
@@ -220,7 +247,7 @@ public:
         return get_nth_element(index);
     }
 
-    // Iterator support
+    // iterator
     class iterator
     {
     private:
@@ -228,8 +255,7 @@ public:
         size_t index_;
 
     public:
-        iterator(StructArray* arr, size_t index) //
-            : arr_(arr), index_(index)
+        iterator(StructArray* arr, size_t index) : arr_(arr), index_(index)
         {
         }
 
@@ -250,6 +276,36 @@ public:
         }
     };
 
+    // Const iterator
+    class const_iterator
+    {
+    private:
+        const StructArray* arr_;
+        size_t index_;
+
+    public:
+        const_iterator(const StructArray* arr, size_t index) : arr_(arr), index_(index)
+        {
+        }
+
+        const_iterator& operator++()
+        {
+            ++index_;
+            return *this;
+        }
+
+        bool operator!=(const const_iterator& other) const
+        {
+            return index_ != other.index_;
+        }
+
+        T operator*() const // Note: returns by value since T is a struct
+        {
+            return arr_->get_nth_element(index_);
+        }
+    };
+
+    // Non-const begin/end
     iterator begin()
     {
         return iterator(this, 0);
@@ -258,6 +314,28 @@ public:
     iterator end()
     {
         return iterator(this, count_ref());
+    }
+
+    // Const begin/end
+    const_iterator begin() const
+    {
+        return const_iterator(this, 0);
+    }
+
+    const_iterator end() const
+    {
+        return const_iterator(this, count_ref());
+    }
+
+    // make non-const begin()/end() use const versions when called on const objects
+    const_iterator cbegin() const
+    {
+        return begin();
+    }
+
+    const_iterator cend() const
+    {
+        return end();
     }
 };
 

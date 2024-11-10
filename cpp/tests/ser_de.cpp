@@ -133,6 +133,16 @@ TEST(fastbin, ser_de_VectorOfUInt32)
         i++;
     }
     EXPECT_EQ(i, values.size());
+
+    // test const iterator
+    i = 0;
+    const auto& cv = v.values();
+    for (const auto& item : cv)
+    {
+        EXPECT_EQ(item, values[i]);
+        i++;
+    }
+    EXPECT_EQ(i, values.size());
 }
 
 TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
@@ -204,6 +214,16 @@ TEST(fastbin, ser_de_VectorOfFixedSizedStructs_own_buffer)
     // test iterator
     size_t i = 0;
     for (const auto item : v.values())
+    {
+        EXPECT_EQ(item.buffer, v.values()[i].buffer);
+        i++;
+    }
+    EXPECT_EQ(i, values.size());
+
+    // test const iterator
+    i = 0;
+    const auto& cv = v.values();
+    for (const auto& item : cv)
     {
         EXPECT_EQ(item.buffer, v.values()[i].buffer);
         i++;
