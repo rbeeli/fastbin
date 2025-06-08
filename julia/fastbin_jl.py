@@ -152,7 +152,7 @@ class GenContext:
 
         # parse enums
         for enum_name, enum_content in schema.get("enums", {}).items():
-            if not "type" in enum_content:
+            if "type" not in enum_content:
                 raise ValueError(f"Enum '{enum_name}' does not have 'type' defined")
 
             storage_type = self.get_type_def(enum_content["type"])
@@ -218,12 +218,12 @@ class GenContext:
             self.struct_types[struct_name] = type_def
 
     def get_struct_def(self, name: str) -> StructDef:
-        if not name in self.structs:
+        if name not in self.structs:
             raise ValueError(f"Struct '{name}' not found or used before declaration")
         return self.structs[name]
 
     def get_enum_def(self, name: str) -> EnumDef:
-        if not name in self.enums:
+        if name not in self.enums:
             raise ValueError(f"Enum '{name}' not found")
         return self.enums[name]
 
@@ -269,7 +269,7 @@ class GenContext:
 
 
 def parse_docstring(docstring: str | List[str] | None):
-    if docstring == None or docstring == "" or docstring == []:
+    if docstring is None or docstring == "" or docstring == []:
         return None
     if isinstance(docstring, str):
         return [docstring]
@@ -310,8 +310,8 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
     code += "\n"
     code += f"function from_string(::Type{{{enum_def.name}.T}}, str::T) where T <: AbstractString\n"
     for i, (name, member_def) in enumerate(enum_def.members.items()):
-        code += f"    str == \"{name}\" && return {enum_def.name}.{name}\n"
-    code += f"    throw(ArgumentError(\"Invalid string value for enum {ctx.namespace}.{enum_def.name}: $str\"))\n"
+        code += f'    str == "{name}" && return {enum_def.name}.{name}\n'
+    code += f'    throw(ArgumentError("Invalid string value for enum {ctx.namespace}.{enum_def.name}: $str"))\n'
     code += "end\n"
 
     return code
@@ -327,32 +327,30 @@ def generate_get_member_body(ctx: GenContext, member_def: StructMemberDef):
     elif type_def.category == "s":
         # struct
         code = f"    ptr::Ptr{{UInt8}} = obj.buffer + {prefix}{member_def.name}_offset(obj)\n"
-        code += (
-            f"    return {lang_type}(ptr, {prefix}{member_def.name}_size_aligned(obj), false)\n"
-        )
+        code += f"    return {lang_type}(ptr, {prefix}{member_def.name}_size_aligned(obj), false)\n"
     elif type_def.category == "c":
         # container with variable length (string, vector<T>)
         el_type_def = type_def.element_type_def
         el_type_jl = el_type_def.lang_type
         code = f"    ptr::Ptr{{{el_type_jl}}} = reinterpret(Ptr{{{el_type_jl}}}, obj.buffer + {prefix}{member_def.name}_offset(obj))\n"
         code += f"    unaligned_size::UInt64 = {prefix}{member_def.name}_size_unaligned(obj)\n"
-        code += f"    n_bytes::UInt64 = unaligned_size - 8\n"  # -8 to skip the size
+        code += "    n_bytes::UInt64 = unaligned_size - 8\n"  # -8 to skip the size
         if el_type_def.native_size == 1:
-            code += f"    count::UInt64 = n_bytes\n"
+            code += "    count::UInt64 = n_bytes\n"
         elif el_type_def.native_size == 2:
             # >> 1 is equal to dividing by 2
-            code += f"    count::UInt64 = n_bytes >> 1\n"
+            code += "    count::UInt64 = n_bytes >> 1\n"
         elif el_type_def.native_size == 4:
             # >> 2 is equal to dividing by 4
-            code += f"    count::UInt64 = n_bytes >> 2\n"
+            code += "    count::UInt64 = n_bytes >> 2\n"
         elif el_type_def.native_size == 8:
             # >> 3 is equal to dividing by 8
-            code += f"    count::UInt64 = n_bytes >> 3\n"
+            code += "    count::UInt64 = n_bytes >> 3\n"
         else:
             code += f"    count::UInt64 = n_bytes / {el_type_def.native_size}\n"
         if type_def.name == "string":
             # StringView
-            code += f"    return StringView(unsafe_wrap(Vector{{UInt8}}, ptr + 8, count, own=false))\n"  # +8 to skip the size
+            code += "    return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))\n"  # +8 to skip the size
         else:
             # Vector{T}
             code += f"    return unsafe_wrap(Vector{{{el_type_def.lang_type}}}, ptr + 8, count, own=false)\n"  # +8 to skip the size
@@ -379,26 +377,26 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
         maybe_unaligned = el_type_def.native_size % 8 != 0
         if maybe_unaligned:
             # string or vector<T> with size of T not divisible of 8
-            code += f"    unaligned_size::UInt64 = 8 + contents_size\n"
-            code += f"    aligned_size::UInt64 = (unaligned_size + 7) & ~7\n"
-            code += f"    aligned_diff::UInt64 = aligned_size - unaligned_size\n"
+            code += "    unaligned_size::UInt64 = 8 + contents_size\n"
+            code += "    aligned_size::UInt64 = (unaligned_size + 7) & ~7\n"
+            code += "    aligned_diff::UInt64 = aligned_size - unaligned_size\n"
             # add diff to high-bits of aligned_size
             code += (
-                f"    aligned_size_high::UInt64 = aligned_size | (aligned_diff << 56)\n"
+                "    aligned_size_high::UInt64 = aligned_size | (aligned_diff << 56)\n"
             )
-            code += f"    unsafe_store!(reinterpret(Ptr{{UInt64}}, obj.buffer + offset), aligned_size_high)\n"
+            code += "    unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), aligned_size_high)\n"
         else:
             # element size is divisible by 8, no alignment adjustment needed
-            code += f"    unsafe_store!(reinterpret(Ptr{{UInt64}}, obj.buffer + offset), 8 + contents_size)\n"
-        code += f"    dest_ptr::Ptr{{UInt8}} = obj.buffer + offset + 8\n"
-        code += f"    src_ptr::Ptr{{UInt8}} = reinterpret(Ptr{{UInt8}}, pointer(value))\n"
-        code += f"    unsafe_copyto!(dest_ptr, src_ptr, contents_size)\n"
+            code += "    unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), 8 + contents_size)\n"
+        code += "    dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8\n"
+        code += "    src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))\n"
+        code += "    unsafe_copyto!(dest_ptr, src_ptr, contents_size)\n"
     elif type_def.category == "s":
         # struct
         code = f'    @assert binary_size(value) > 0 "Cannot set member `{member_def.name}`, parameter struct of type `{lang_type}` not finalized. Call fastbin_finalize!(obj) on struct after creation."\n'
         code += f"    offset::UInt64 = {prefix}{member_def.name}_offset(obj)\n"
-        code += f"    size::UInt64 = binary_size(value)\n"
-        code += f"    unsafe_copyto!(obj.buffer + offset, value.buffer, size)\n"
+        code += "    size::UInt64 = binary_size(value)\n"
+        code += "    unsafe_copyto!(obj.buffer + offset, value.buffer, size)\n"
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
 
@@ -421,15 +419,15 @@ def generate_size_member_body(
         if maybe_unaligned:
             # string or vector<T> with size of T not divisible of 8
             if unaligned_size:
-                code += f"    aligned_diff::UInt64 = stored_size >> 56\n"
-                code += f"    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF\n"  # remove 8 high-bits
-                code += f"    return aligned_size - aligned_diff\n"
+                code += "    aligned_diff::UInt64 = stored_size >> 56\n"
+                code += "    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF\n"  # remove 8 high-bits
+                code += "    return aligned_size - aligned_diff\n"
             else:
-                code += f"    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF\n"  # remove 8 high-bits
-                code += f"    return aligned_size\n"
+                code += "    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF\n"  # remove 8 high-bits
+                code += "    return aligned_size\n"
         else:
             # element size is divisible by 8, no alignment adjustment needed
-            code += f"    return stored_size\n"
+            code += "    return stored_size\n"
     elif type_def.category == "s":
         # structs are always aligned to 8 bytes
         if type_def.variable_length:
@@ -442,7 +440,11 @@ def generate_size_member_body(
     return code
 
 
-def generate_calc_size_aligned_member_body(ctx: GenContext, struct_def: StructDef, member_def: StructMemberDef):
+def generate_calc_size_aligned_member_body(
+    ctx: GenContext,
+    struct_def: StructDef,
+    member_def: StructMemberDef,
+):
     # NOTE: Must match implementation in `generate_size_member_body`
     type_def = member_def.type_def
     lang_type = type_def.lang_type
@@ -458,14 +460,14 @@ def generate_calc_size_aligned_member_body(ctx: GenContext, struct_def: StructDe
         maybe_unaligned = el_type_def.native_size % 8 != 0
         if maybe_unaligned:
             # string or vector<T> with size of T not divisible by 8
-            code += f"    unaligned_size::UInt64 = 8 + contents_size\n"
-            code += f"    return (unaligned_size + 7) & ~7\n"
+            code += "    unaligned_size::UInt64 = 8 + contents_size\n"
+            code += "    return (unaligned_size + 7) & ~7\n"
         else:
             # element size is divisible by 8, no alignment adjustment needed
-            code += f"    return 8 + contents_size\n"
+            code += "    return 8 + contents_size\n"
     elif type_def.category == "s":
         # struct
-        code = f'    return binary_size(value)\n'
+        code = "    return binary_size(value)\n"
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
 
@@ -473,7 +475,10 @@ def generate_calc_size_aligned_member_body(ctx: GenContext, struct_def: StructDe
 
 
 def generate_offset_member_body(
-    ctx: GenContext, index: int, struct_def: StructDef, member_def: StructMemberDef
+    ctx: GenContext,
+    index: int,
+    struct_def: StructDef,
+    member_def: StructMemberDef,
 ):
     member_names = list(struct_def.members.keys())
     if struct_def.type_def.variable_length:
@@ -482,7 +487,7 @@ def generate_offset_member_body(
     else:
         # fixed-length struct
         offset = 0
-    for (i, prev_member) in enumerate(struct_def.members.values()):
+    for i, prev_member in enumerate(struct_def.members.values()):
         if i < index:
             if prev_member.type_def.variable_length:
                 # cannot precompute fixed offset, variable length member found
@@ -493,7 +498,7 @@ def generate_offset_member_body(
                 offset += prev_member.type_def.aligned_size
     if offset == -1:
         # variable length member found, cannot precompute offset
-        code_body = f"    return {prefix}{member_names[index-1]}_offset(obj) + {prefix}{member_names[index-1]}_size_aligned(obj)\n"
+        code_body = f"    return {prefix}{member_names[index - 1]}_offset(obj) + {prefix}{member_names[index - 1]}_size_aligned(obj)\n"
     else:
         code_body = f"    return {offset}\n"
     return code_body
@@ -502,12 +507,12 @@ def generate_offset_member_body(
 def generate_struct(ctx: GenContext, struct_def: StructDef):
     print(f"Generating struct {ctx.namespace}::{struct_def.name}", end=" ")
     if struct_def.type_def.variable_length:
-        print(f"[size=variable]")
+        print("[size=variable]")
     else:
         print(f"[size={struct_def.type_def.aligned_size} bytes]")
     for name, member_def in struct_def.members.items():
         print(f"- {name}: {member_def.type_def.lang_type}")
-    
+
     member_names = list(name for name, _ in struct_def.members.items())
 
     if len(member_names) == 0:
@@ -520,7 +525,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     for i, (name, member_def) in enumerate(struct_def.members.items()):
         code_body += f"\n# Member: {name}::{member_def.type_def.lang_type}\n"
         type_def = member_def.type_def
-        
+
         # getter
         code_body += (
             f"\n@inline function {name}(obj::{struct_def.name})::{type_def.lang_type}\n"
@@ -528,7 +533,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code_body += generate_get_member_body(ctx, member_def)
         code_body += "end\n"
         code_body += "\n"
-        
+
         # setter
         if type_def.lang_type == "StringView":
             code_body += f"@inline function {name}!(obj::{struct_def.name}, value::T) where {{T<:AbstractString}}\n"
@@ -537,7 +542,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code_body += generate_set_member_body(ctx, member_def)
         code_body += "end\n"
         code_body += "\n"
-        
+
         # offset
         code_body += (
             f"@inline function {prefix}{name}_offset(obj::{struct_def.name})::UInt64\n"
@@ -545,15 +550,13 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code_body += generate_offset_member_body(ctx, i, struct_def, member_def)
         code_body += "end\n"
         code_body += "\n"
-        
+
         # size aligned
-        code_body += (
-            f"@inline function {prefix}{name}_size_aligned(obj::{struct_def.name})::UInt64\n"
-        )
+        code_body += f"@inline function {prefix}{name}_size_aligned(obj::{struct_def.name})::UInt64\n"
         code_body += generate_size_member_body(ctx, member_def, False)
         code_body += "end\n"
         code_body += "\n"
-            
+
         # calc size aligned
         if type_def.lang_type == "StringView":
             code_body += f"@inline function {prefix}{name}_calc_size_aligned(::Type{{{struct_def.name}}}, value::T)::UInt64 where {{T<:AbstractString}}\n"
@@ -562,15 +565,17 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code_body += generate_calc_size_aligned_member_body(ctx, struct_def, member_def)
         code_body += "end\n"
         code_body += "\n"
-        
+
         # size unaligned
         if type_def.category == "c":
             code_body += f"@inline function {prefix}{name}_size_unaligned(obj::{struct_def.name})::UInt64\n"
             code_body += generate_size_member_body(ctx, member_def, True)
             code_body += "end\n"
-        
-    code_body += "\n# --------------------------------------------------------------------\n"
-    
+
+    code_body += (
+        "\n# --------------------------------------------------------------------\n"
+    )
+
     code = "import Base.show\n"
     code += "import Base.finalizer\n"
     includes = [
@@ -585,9 +590,9 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     if struct_def.docstring:
         for line in struct_def.docstring:
             code += f"{line}\n"
-        code += f"\n"
-        code += f"{'-'*60}\n"
-        code += f"\n"
+        code += "\n"
+        code += f"{'-' * 60}\n"
+        code += "\n"
 
     code += "Binary serializable data container generated by `fastbin`.\n"
     code += "\n"
@@ -597,13 +602,13 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     else:
         code += f"This container has fixed size of {struct_def.type_def.aligned_size} bytes.\n"
         code += "\n"
-    
+
     code += "Members in order\n"
     code += "================\n"
     for i, (name, member_def) in enumerate(struct_def.members.items()):
-        name_type = '`' + name + "::" + member_def.type_def.lang_type + '`'
+        name_type = "`" + name + "::" + member_def.type_def.lang_type + "`"
         code += f"- {name_type.ljust(24)} ({'variable' if member_def.type_def.variable_length else 'fixed'})\n"
-    code += "\n"        
+    code += "\n"
     code += "The `fastbin_finalize!()` method MUST be called after all setter methods have been called.\n"
     code += "\n"
     code += "It is the responsibility of the caller to ensure that the buffer is\n"
@@ -638,7 +643,9 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
 
     # binary size calculated
     code += "\n"
-    code += f"@inline function fastbin_calc_binary_size(obj::{struct_def.name})::UInt64\n"
+    code += (
+        f"@inline function fastbin_calc_binary_size(obj::{struct_def.name})::UInt64\n"
+    )
     if struct_def.type_def.variable_length:
         code += f"    return {prefix}{member_names[-1]}_offset(obj) + {prefix}{member_names[-1]}_size_aligned(obj)\n"
     else:
@@ -649,34 +656,49 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     if not struct_def.type_def.variable_length:
         # fixed size
         code += "\n"
-        code += f"@inline function fastbin_calc_binary_size(::Type{{{struct_def.name}}})\n"
+        code += (
+            f"@inline function fastbin_calc_binary_size(::Type{{{struct_def.name}}})\n"
+        )
         code += f"    {struct_def.type_def.aligned_size}\n"
         code += "end\n"
     else:
         # variable length.
         # calculate size based on the fixed size + the size of all variable-length members
-        var_members = [(k,v) for (k,v) in struct_def.members.items() if v.type_def.variable_length]
-        fixed_members = [(k,v) for (k,v) in struct_def.members.items() if not v.type_def.variable_length]
+        var_members = [
+            (k, v)
+            for (k, v) in struct_def.members.items()
+            if v.type_def.variable_length
+        ]
+        fixed_members = [
+            (k, v)
+            for (k, v) in struct_def.members.items()
+            if not v.type_def.variable_length
+        ]
         code += "\n"
         code += f"@inline function fastbin_calc_binary_size(::Type{{{struct_def.name}}}"
-        for (name, member_def) in var_members:
+        for name, member_def in var_members:
             code += f",\n    {member_def.name}::{member_def.type_def.lang_type}"
         code += "\n)\n"
-        fixed_size = 8 + sum([v.type_def.aligned_size for (_,v) in fixed_members])
+        fixed_size = 8 + sum([v.type_def.aligned_size for (_, v) in fixed_members])
         code += f"    return {fixed_size} +\n"
-        code += "        " + ' +\n        '.join([f'{prefix}{name}_calc_size_aligned({struct_def.name}, {name})' for name, _ in var_members])
+        code += "        " + " +\n        ".join(
+            [
+                f"{prefix}{name}_calc_size_aligned({struct_def.name}, {name})"
+                for name, _ in var_members
+            ]
+        )
         code += "\n"
         code += "end\n"
 
     # binary size
     code += "\n"
     code += '"""\n'
-    code += 'Returns the stored (aligned) binary size of the object.\n'
-    code += 'This function should only be called after `fastbin_finalize!(obj)`.\n'
+    code += "Returns the stored (aligned) binary size of the object.\n"
+    code += "This function should only be called after `fastbin_finalize!(obj)`.\n"
     code += '"""\n'
     code += f"@inline function fastbin_binary_size(obj::{struct_def.name})::UInt64\n"
     if struct_def.type_def.variable_length:
-        code += f"    return unsafe_load(reinterpret(Ptr{{UInt64}}, obj.buffer))\n"
+        code += "    return unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer))\n"
     else:
         code += f"    return {struct_def.type_def.aligned_size}\n"
     code += "end\n"
@@ -684,9 +706,9 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     # finalize (write the struct's binary size to the first 8 bytes)
     code += "\n"
     code += '"""\n'
-    code += 'Finalizes the object by writing the binary size to the beginning of its buffer.\n'
-    code += 'After calling this function, the underlying buffer can be used for serialization.\n'
-    code += 'To get the actual buffer size, call `fastbin_binary_size(obj)`.\n'
+    code += "Finalizes the object by writing the binary size to the beginning of its buffer.\n"
+    code += "After calling this function, the underlying buffer can be used for serialization.\n"
+    code += "To get the actual buffer size, call `fastbin_binary_size(obj)`.\n"
     code += '"""\n'
     code += f"@inline function fastbin_finalize!(obj::{struct_def.name})\n"
     if struct_def.type_def.variable_length:
@@ -704,7 +726,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
             code += f"    print(io, {member_def.name}(obj))\n"
         else:
             code += f"    show(io, {member_def.name}(obj))\n"
-    code += f"    println(io)\n"
+    code += "    println(io)\n"
     code += "end\n"
 
     return code
@@ -724,15 +746,15 @@ def generate_single_include_file(output_dir: str, ctx: GenContext):
     code += "\n"
 
     # export all
-    code += f"# export all types and functions\n"
-    code += f"for n in names(@__MODULE__; all=true)\n"
+    code += "# export all types and functions\n"
+    code += "for n in names(@__MODULE__; all=true)\n"
     code += (
-        f"    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)\n"
+        "    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)\n"
     )
     # code += f'        println("Exporting: $n")\n'
-    code += f"        @eval export $n\n"
-    code += f"    end\n"
-    code += f"end\n\n"
+    code += "        @eval export $n\n"
+    code += "    end\n"
+    code += "end\n\n"
 
     # # export all enums
     # if len(ctx.enums) > 0:
