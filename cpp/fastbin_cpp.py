@@ -326,6 +326,7 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
     code += "\n"
     code += "#include <string>\n"
     code += "#include <ostream>\n"
+    code += "#include <utility>\n"
     if enum_def.generate_parse:
         code += "#include <string_view>\n"
         code += "#include <expected>\n"
@@ -344,7 +345,7 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
     # parse
     if enum_def.generate_parse:
         code += "\n"
-        code += f"inline std::expected<{ctx.namespace}::{enum_def.name}, std::string> parse_{enum_def.name}(std::string_view str)\n"
+        code += f"[[nodiscard]] std::expected<{ctx.namespace}::{enum_def.name}, std::string> parse_{enum_def.name}(std::string_view str)\n"
         code += "{\n"
         for mem in enum_def.members.values():
             code += f"    if ({' || '.join(f'str == "{m}"' for m in mem.map)})\n"
@@ -356,21 +357,20 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
 
     # to_string
     code += "\n"
-    code += f"inline std::string to_string({ctx.namespace}::{enum_def.name} value)\n"
+    code += f"[[nodiscard]] constexpr std::string_view to_string({ctx.namespace}::{enum_def.name} value) noexcept\n"
     code += "{\n"
     code += "    switch (value)\n"
     code += "    {\n"
     for name in enum_def.members.keys():
         code += f"        case {ctx.namespace}::{enum_def.name}::{name}:\n"
         code += f'            return "{name}";\n'
-    code += "        default:\n"
-    code += '            return "Unknown";\n'
     code += "    }\n"
+    code += "    std::unreachable();\n"
     code += "}\n"
 
     # ostream << operator
     code += "\n"
-    code += f"inline std::ostream& operator<<(std::ostream& os, const {ctx.namespace}::{enum_def.name}& obj)\n"
+    code += f"std::ostream& operator<<(std::ostream& os, const {ctx.namespace}::{enum_def.name}& obj)\n"
     code += "{\n"
     code += "    os << to_string(obj);\n"
     code += "    return os;\n"
