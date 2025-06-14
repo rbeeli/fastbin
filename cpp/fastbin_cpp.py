@@ -1,3 +1,4 @@
+from itertools import chain
 import json
 import os
 import sys
@@ -41,7 +42,7 @@ class StructDef:
 class EnumMemberDef:
     name: str
     value: int
-    map: str
+    map: List[str]
     docstring: List[str]
 
 
@@ -148,6 +149,8 @@ class GenContext:
             for member_name, member_content in enum_content.get("members", {}).items():
                 value = member_content["value"]
                 map = member_content.get("map", member_name)
+                if not isinstance(map, list):
+                    map = [map]
                 member_docstring = parse_docstring(
                     member_content.get("docstring", None)
                 )
@@ -161,7 +164,8 @@ class GenContext:
             if len(set([m.value for m in members.values()])) != len(members):
                 raise ValueError(f"Enum '{enum_name}' has duplicate values")
             # ensure that enum maps are unique
-            if len(set([m.map for m in members.values()])) != len(members):
+            all_maps = list(chain.from_iterable(m.map for m in members.values()))
+            if len(set(all_maps)) != len(all_maps):
                 raise ValueError(f"Enum '{enum_name}' has duplicate map entries")
 
             generate_parse = enum_content.get("generate_parse", False)
@@ -343,7 +347,7 @@ def generate_enum(ctx: GenContext, enum_def: EnumDef):
         code += f"inline std::expected<{ctx.namespace}::{enum_def.name}, std::string> parse_{enum_def.name}(std::string_view str)\n"
         code += "{\n"
         for mem in enum_def.members.values():
-            code += f'    if (str == "{mem.map}")\n'
+            code += f"    if ({' || '.join(f'str == "{m}"' for m in mem.map)})\n"
             code += f"        return {ctx.namespace}::{enum_def.name}::{mem.name};\n"
         code += f'    return std::unexpected("Unknown {enum_def.name} enum string value: " + std::string(str));\n'
         code += "}\n"
