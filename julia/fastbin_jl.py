@@ -741,17 +741,16 @@ def generate_single_include_file(output_dir: str, ctx: GenContext):
         file.write(code)
 
 
-def move_template_files(output_dir: Path, ctx: GenContext, script_dir: Path):
-    # move template files from "templates" directory to output directory
+def copy_template_files(output_dir: Path, ctx: GenContext, script_dir: Path):
+    # copy template files from "templates" directory to output directory
     # replace "YOUR_NAMESPACE" with actual namespace
     tpl_path = script_dir / "templates"
     for file in tpl_path.iterdir():
-        file_path = tpl_path / file
-        with open(file_path, "r") as f:
-            code = f.read()
-            code = code.replace("YOUR_NAMESPACE", ctx.namespace)
-            with open(output_dir / file, "w") as ff:
-                ff.write(code)
+        with (
+            open(file, "r") as src,
+            open(output_dir / file.name, "w") as dst,
+        ):
+            dst.write(src.read().replace("YOUR_NAMESPACE", ctx.namespace))
 
 
 def generate_code(schema_file: Path, output_dir: Path, script_dir: Path):
@@ -784,7 +783,7 @@ def generate_code(schema_file: Path, output_dir: Path, script_dir: Path):
     generate_single_include_file(output_dir, ctx)
 
     # move template files to output directory
-    move_template_files(output_dir, ctx, script_dir)
+    copy_template_files(output_dir, ctx, script_dir)
 
 
 if __name__ == "__main__":
