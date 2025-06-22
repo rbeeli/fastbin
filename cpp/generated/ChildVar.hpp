@@ -83,7 +83,7 @@ public:
         return 8;
     }
 
-    static size_t _field1_calc_size_aligned(const std::int32_t& value)
+    static size_t _field1_calc_size_aligned(const std::int32_t& value) noexcept
     {
         return 8;
     }
@@ -124,7 +124,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _field2_calc_size_aligned(const std::string_view& value)
+    static size_t _field2_calc_size_aligned(const std::string_view& value) noexcept
     {
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
@@ -148,7 +148,7 @@ public:
 
     static size_t fastbin_calc_binary_size(
         const std::string_view& field2
-    )
+    ) noexcept
     {
         return 16 + _field2_calc_size_aligned(field2);
     }

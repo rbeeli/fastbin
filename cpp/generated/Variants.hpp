@@ -99,7 +99,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _primitives_calc_size_aligned(const Variant<std::int32_t, std::int64_t, std::uint8_t>& value)
+    static size_t _primitives_calc_size_aligned(const Variant<std::int32_t, std::int64_t, std::uint8_t>& value) noexcept
     {
         size_t unaligned_size = 8 + value.fastbin_binary_size();
         size_t aligned_size = (unaligned_size + 7) & ~7;
@@ -145,7 +145,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _primitives_and_string_calc_size_aligned(const Variant<std::string_view, double, bool>& value)
+    static size_t _primitives_and_string_calc_size_aligned(const Variant<std::string_view, double, bool>& value) noexcept
     {
         size_t unaligned_size = 8 + value.fastbin_binary_size();
         size_t aligned_size = (unaligned_size + 7) & ~7;
@@ -191,7 +191,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _structs_calc_size_aligned(const Variant<ChildFixed, ChildVar>& value)
+    static size_t _structs_calc_size_aligned(const Variant<ChildFixed, ChildVar>& value) noexcept
     {
         size_t unaligned_size = 8 + value.fastbin_binary_size();
         size_t aligned_size = (unaligned_size + 7) & ~7;
@@ -210,7 +210,7 @@ public:
         const Variant<std::int32_t, std::int64_t, std::uint8_t>& primitives,
         const Variant<std::string_view, double, bool>& primitives_and_string,
         const Variant<ChildFixed, ChildVar>& structs
-    )
+    ) noexcept
     {
         return 8 + _primitives_calc_size_aligned(primitives) +
             _primitives_and_string_calc_size_aligned(primitives_and_string) +

@@ -96,7 +96,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _values_calc_size_aligned(const std::span<std::uint32_t>& value)
+    static size_t _values_calc_size_aligned(const std::span<std::uint32_t>& value) noexcept
     {
         size_t contents_size = value.size() * 4;
         size_t unaligned_size = 8 + contents_size;
@@ -146,7 +146,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _str_calc_size_aligned(const std::string_view& value)
+    static size_t _str_calc_size_aligned(const std::string_view& value) noexcept
     {
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
@@ -171,7 +171,7 @@ public:
     static size_t fastbin_calc_binary_size(
         const std::span<std::uint32_t>& values,
         const std::string_view& str
-    )
+    ) noexcept
     {
         return 8 + _values_calc_size_aligned(values) +
             _str_calc_size_aligned(str);

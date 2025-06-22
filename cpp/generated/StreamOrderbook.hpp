@@ -98,7 +98,7 @@ public:
         return 8;
     }
 
-    static size_t _server_time_calc_size_aligned(const std::int64_t& value)
+    static size_t _server_time_calc_size_aligned(const std::int64_t& value) noexcept
     {
         return 8;
     }
@@ -126,7 +126,7 @@ public:
         return 8;
     }
 
-    static size_t _recv_time_calc_size_aligned(const std::int64_t& value)
+    static size_t _recv_time_calc_size_aligned(const std::int64_t& value) noexcept
     {
         return 8;
     }
@@ -154,7 +154,7 @@ public:
         return 8;
     }
 
-    static size_t _cts_calc_size_aligned(const std::int64_t& value)
+    static size_t _cts_calc_size_aligned(const std::int64_t& value) noexcept
     {
         return 8;
     }
@@ -182,7 +182,7 @@ public:
         return 8;
     }
 
-    static size_t _type_calc_size_aligned(const OrderbookType& value)
+    static size_t _type_calc_size_aligned(const OrderbookType& value) noexcept
     {
         return 8;
     }
@@ -210,7 +210,7 @@ public:
         return 8;
     }
 
-    static size_t _depth_calc_size_aligned(const std::uint16_t& value)
+    static size_t _depth_calc_size_aligned(const std::uint16_t& value) noexcept
     {
         return 8;
     }
@@ -251,7 +251,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _symbol_calc_size_aligned(const std::string_view& value)
+    static size_t _symbol_calc_size_aligned(const std::string_view& value) noexcept
     {
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
@@ -288,7 +288,7 @@ public:
         return 8;
     }
 
-    static size_t _update_id_calc_size_aligned(const std::uint64_t& value)
+    static size_t _update_id_calc_size_aligned(const std::uint64_t& value) noexcept
     {
         return 8;
     }
@@ -316,7 +316,7 @@ public:
         return 8;
     }
 
-    static size_t _seq_num_calc_size_aligned(const std::uint64_t& value)
+    static size_t _seq_num_calc_size_aligned(const std::uint64_t& value) noexcept
     {
         return 8;
     }
@@ -353,7 +353,7 @@ public:
         return stored_size;
     }
 
-    static size_t _bid_prices_calc_size_aligned(const std::span<double>& value)
+    static size_t _bid_prices_calc_size_aligned(const std::span<double>& value) noexcept
     {
         size_t contents_size = value.size() * 8;
         return 8 + contents_size;
@@ -396,7 +396,7 @@ public:
         return stored_size;
     }
 
-    static size_t _bid_quantities_calc_size_aligned(const std::span<double>& value)
+    static size_t _bid_quantities_calc_size_aligned(const std::span<double>& value) noexcept
     {
         size_t contents_size = value.size() * 8;
         return 8 + contents_size;
@@ -439,7 +439,7 @@ public:
         return stored_size;
     }
 
-    static size_t _ask_prices_calc_size_aligned(const std::span<double>& value)
+    static size_t _ask_prices_calc_size_aligned(const std::span<double>& value) noexcept
     {
         size_t contents_size = value.size() * 8;
         return 8 + contents_size;
@@ -482,7 +482,7 @@ public:
         return stored_size;
     }
 
-    static size_t _ask_quantities_calc_size_aligned(const std::span<double>& value)
+    static size_t _ask_quantities_calc_size_aligned(const std::span<double>& value) noexcept
     {
         size_t contents_size = value.size() * 8;
         return 8 + contents_size;
@@ -507,7 +507,7 @@ public:
         const std::span<double>& bid_quantities,
         const std::span<double>& ask_prices,
         const std::span<double>& ask_quantities
-    )
+    ) noexcept
     {
         return 64 + _symbol_calc_size_aligned(symbol) +
             _bid_prices_calc_size_aligned(bid_prices) +

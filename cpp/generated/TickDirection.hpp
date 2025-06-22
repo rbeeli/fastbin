@@ -2,6 +2,7 @@
 
 #include <string>
 #include <ostream>
+#include <utility>
 #include <cstdint>
 
 namespace my_models
@@ -41,7 +42,7 @@ enum class TickDirection : std::uint8_t
 };
 }; // namespace my_models
 
-inline std::string to_string(my_models::TickDirection value)
+[[nodiscard]] constexpr std::string_view to_string(my_models::TickDirection value) noexcept
 {
     switch (value)
     {
@@ -55,12 +56,11 @@ inline std::string to_string(my_models::TickDirection value)
             return "MinusTick";
         case my_models::TickDirection::ZeroMinusTick:
             return "ZeroMinusTick";
-        default:
-            return "Unknown";
     }
+    std::unreachable();
 }
 
-inline std::ostream& operator<<(std::ostream& os, const my_models::TickDirection& obj)
+std::ostream& operator<<(std::ostream& os, const my_models::TickDirection& obj)
 {
     os << to_string(obj);
     return os;

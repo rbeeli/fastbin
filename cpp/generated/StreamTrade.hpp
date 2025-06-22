@@ -97,7 +97,7 @@ public:
         return 8;
     }
 
-    static size_t _server_time_calc_size_aligned(const std::int64_t& value)
+    static size_t _server_time_calc_size_aligned(const std::int64_t& value) noexcept
     {
         return 8;
     }
@@ -125,7 +125,7 @@ public:
         return 8;
     }
 
-    static size_t _recv_time_calc_size_aligned(const std::int64_t& value)
+    static size_t _recv_time_calc_size_aligned(const std::int64_t& value) noexcept
     {
         return 8;
     }
@@ -166,7 +166,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _symbol_calc_size_aligned(const std::string_view& value)
+    static size_t _symbol_calc_size_aligned(const std::string_view& value) noexcept
     {
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
@@ -203,7 +203,7 @@ public:
         return 8;
     }
 
-    static size_t _fill_time_calc_size_aligned(const std::int64_t& value)
+    static size_t _fill_time_calc_size_aligned(const std::int64_t& value) noexcept
     {
         return 8;
     }
@@ -231,7 +231,7 @@ public:
         return 8;
     }
 
-    static size_t _side_calc_size_aligned(const TradeSide& value)
+    static size_t _side_calc_size_aligned(const TradeSide& value) noexcept
     {
         return 8;
     }
@@ -259,7 +259,7 @@ public:
         return 8;
     }
 
-    static size_t _price_calc_size_aligned(const double& value)
+    static size_t _price_calc_size_aligned(const double& value) noexcept
     {
         return 8;
     }
@@ -287,7 +287,7 @@ public:
         return 8;
     }
 
-    static size_t _price_chg_dir_calc_size_aligned(const TickDirection& value)
+    static size_t _price_chg_dir_calc_size_aligned(const TickDirection& value) noexcept
     {
         return 8;
     }
@@ -315,7 +315,7 @@ public:
         return 8;
     }
 
-    static size_t _size_calc_size_aligned(const double& value)
+    static size_t _size_calc_size_aligned(const double& value) noexcept
     {
         return 8;
     }
@@ -356,7 +356,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _trade_id_calc_size_aligned(const std::string_view& value)
+    static size_t _trade_id_calc_size_aligned(const std::string_view& value) noexcept
     {
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
@@ -393,7 +393,7 @@ public:
         return 8;
     }
 
-    static size_t _block_trade_calc_size_aligned(const bool& value)
+    static size_t _block_trade_calc_size_aligned(const bool& value) noexcept
     {
         return 8;
     }
@@ -409,7 +409,7 @@ public:
     static size_t fastbin_calc_binary_size(
         const std::string_view& symbol,
         const std::string_view& trade_id
-    )
+    ) noexcept
     {
         return 72 + _symbol_calc_size_aligned(symbol) +
             _trade_id_calc_size_aligned(trade_id);

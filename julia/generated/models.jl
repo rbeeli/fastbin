@@ -9,8 +9,8 @@ include("StreamOrderbook.jl")
 include("ChildVar.jl")
 include("ChildFixed.jl")
 include("Parent.jl")
-include("UInt32Vector.jl")
-include("StructVector.jl")
+include("VectorOfUInt32.jl")
+include("VectorOfFixedSizedStructs.jl")
 
 # export all types and functions
 for n in names(@__MODULE__; all=true)

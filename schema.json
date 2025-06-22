@@ -4,8 +4,8 @@
     "TradeSide": {
       "type": "uint8",
       "members": {
-        "Sell": { "value": 0 },
-        "Buy": { "value": 1 }
+        "Sell": { "value": 0, "map": "SELL" },
+        "Buy": { "value": 1, "map": "BUY" }
       }
     },
     "OrderbookType": {

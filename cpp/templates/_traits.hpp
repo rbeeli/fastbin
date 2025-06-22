@@ -1,6 +1,6 @@
 #pragma once
 
-namespace YOUR_NAMESPACE
+namespace my_models
 {
 template <typename T>
 struct is_variable_size
@@ -31,4 +31,4 @@ template <typename T>
 struct is_variant_supported_type : std::false_type
 {
 };
-}; // namespace YOUR_NAMESPACE
+}; // namespace my_models

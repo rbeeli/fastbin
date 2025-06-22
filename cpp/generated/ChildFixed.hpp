@@ -81,7 +81,7 @@ public:
         return 8;
     }
 
-    static size_t _field1_calc_size_aligned(const std::int32_t& value)
+    static size_t _field1_calc_size_aligned(const std::int32_t& value) noexcept
     {
         return 8;
     }
@@ -109,7 +109,7 @@ public:
         return 8;
     }
 
-    static size_t _field2_calc_size_aligned(const std::int32_t& value)
+    static size_t _field2_calc_size_aligned(const std::int32_t& value) noexcept
     {
         return 8;
     }
@@ -122,7 +122,7 @@ public:
         return 16;
     }
 
-    constexpr size_t fastbin_calc_binary_size()
+    constexpr size_t fastbin_calc_binary_size() noexcept
     {
         return 16;
     }

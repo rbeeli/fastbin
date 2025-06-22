@@ -87,7 +87,7 @@ public:
         return 8;
     }
 
-    static size_t _field1_calc_size_aligned(const std::int32_t& value)
+    static size_t _field1_calc_size_aligned(const std::int32_t& value) noexcept
     {
         return 8;
     }
@@ -119,7 +119,7 @@ public:
         return 16;
     }
 
-    static size_t _child1_calc_size_aligned(const ChildFixed& value)
+    static size_t _child1_calc_size_aligned(const ChildFixed& value) noexcept
     {
         return value.fastbin_binary_size();
     }
@@ -151,7 +151,7 @@ public:
         return *reinterpret_cast<size_t*>(buffer + _child2_offset());
     }
 
-    static size_t _child2_calc_size_aligned(const ChildVar& value)
+    static size_t _child2_calc_size_aligned(const ChildVar& value) noexcept
     {
         return value.fastbin_binary_size();
     }
@@ -192,7 +192,7 @@ public:
         return aligned_size;
     }
 
-    static size_t _str_calc_size_aligned(const std::string_view& value)
+    static size_t _str_calc_size_aligned(const std::string_view& value) noexcept
     {
         size_t contents_size = value.size() * 1;
         size_t unaligned_size = 8 + contents_size;
@@ -217,7 +217,7 @@ public:
     static size_t fastbin_calc_binary_size(
         const ChildVar& child2,
         const std::string_view& str
-    )
+    ) noexcept
     {
         return 32 + _child2_calc_size_aligned(child2) +
             _str_calc_size_aligned(str);

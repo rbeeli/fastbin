@@ -1,13 +1,19 @@
+from itertools import chain
 import json
 import os
 import sys
+import shutil
+from pathlib import Path
 from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 prefix = "_"  # prefix for internally generated functions
 
 
+@dataclass
 class TypeDef:
-    category: str  # e = Enum, s = Struct, c = Container/Vector, p = Primitive
+    # e = Enum, s = Struct, c = Container/Vector, p = Primitive, v = Variant
+    category: str
     name: str
     lang_type: str
     include_stmt: str
@@ -15,94 +21,40 @@ class TypeDef:
     aligned_size: int
     variable_length: bool
     use_print: bool
-    element_type_def: Optional["TypeDef"]
-
-    def __init__(
-        self,
-        category: str,
-        name: str,
-        lang_type: str,
-        include_stmt: str,
-        native_size: int,
-        aligned_size: int,
-        variable_length: bool,
-        use_print: bool,
-        element_type_def: Optional["TypeDef"] = None,
-    ):
-        self.category = category
-        self.name = name
-        self.lang_type = lang_type
-        self.include_stmt = include_stmt
-        self.native_size = native_size
-        self.aligned_size = aligned_size
-        self.variable_length = variable_length
-        self.use_print = use_print
-        self.element_type_def = element_type_def
+    element_type_def: Optional["TypeDef"] = None
+    # elements_type_defs: Optional[List["TypeDef"]] = None  # TODO
 
 
+@dataclass
 class StructMemberDef:
     name: str
     type_def: TypeDef
 
-    def __init__(
-        self,
-        name: str,
-        type_def: TypeDef,
-    ):
-        self.name = name
-        self.type_def = type_def
 
-
+@dataclass
 class StructDef:
     name: str
     type_def: TypeDef
     members: Dict[str, StructMemberDef]
     docstring: str
 
-    def __init__(
-        self,
-        name: str,
-        type_def: TypeDef,
-        members: Dict[str, StructMemberDef],
-        docstring: str,
-    ):
-        self.name = name
-        self.type_def = type_def
-        self.members = members
-        self.docstring = docstring
 
-
+@dataclass
 class EnumMemberDef:
     name: str
     value: int
+    # map: List[str]  # TODO
     docstring: List[str]
 
-    def __init__(self, name: str, value: int, docstring: str):
-        self.name = name
-        self.value = value
-        self.docstring = docstring
 
-
+@dataclass
 class EnumDef:
     name: str
     type_def: TypeDef
     storage_type_def: TypeDef
+    # generate_parse: bool  # TODO
     members: Dict[str, EnumMemberDef]
     docstring: str
-
-    def __init__(
-        self,
-        name: str,
-        type_def: TypeDef,
-        storage_type_def: TypeDef,
-        members: Dict[str, EnumMemberDef],
-        docstring: str,
-    ):
-        self.name = name
-        self.type_def = type_def
-        self.storage_type_def = storage_type_def
-        self.members = members
-        self.docstring = docstring
 
 
 class GenContext:
@@ -175,6 +127,10 @@ class GenContext:
             members = {}
             for member_name, member_content in enum_content.get("members", {}).items():
                 value = member_content["value"]
+                # TODO: Support enum map
+                # map = member_content.get("map", member_name)
+                # if not isinstance(map, list):
+                #     map = [map]
                 member_docstring = parse_docstring(
                     member_content.get("docstring", None)
                 )
@@ -182,6 +138,21 @@ class GenContext:
                     member_name, value, member_docstring
                 )
 
+            # ensure that enum members are unique
+            if len(members) != len(set(members.keys())):
+                raise ValueError(f"Enum '{enum_name}' has duplicate members")
+
+            # ensure that enum values are unique
+            if len(set([m.value for m in members.values()])) != len(members):
+                raise ValueError(f"Enum '{enum_name}' has duplicate values")
+
+            # TODO: Support enum maps
+            # # ensure that enum maps are unique
+            # all_maps = list(chain.from_iterable(m.map for m in members.values()))
+            # if len(set(all_maps)) != len(all_maps):
+            #     raise ValueError(f"Enum '{enum_name}' has duplicate map entries")
+
+            # generate_parse = enum_content.get("generate_parse", False)  # TODO
             self.enums[enum_name] = EnumDef(
                 enum_name, type_def, storage_type, members, docstring
             )
@@ -447,7 +418,7 @@ def generate_calc_size_aligned_member_body(
 ):
     # NOTE: Must match implementation in `generate_size_member_body`
     type_def = member_def.type_def
-    lang_type = type_def.lang_type
+    # lang_type = type_def.lang_type
 
     if type_def.category in ["p", "e"]:
         # primitive, enum
@@ -766,34 +737,54 @@ def generate_single_include_file(output_dir: str, ctx: GenContext):
 
     code += "end\n"
 
-    with open(f"{output_dir}/models.jl", "w") as file:
+    with open(output_dir / "models.jl", "w") as file:
         file.write(code)
 
 
-def generate_jl_code(schema_file, output_dir: str):
+def move_template_files(output_dir: Path, ctx: GenContext, script_dir: Path):
+    # move template files from "templates" directory to output directory
+    # replace "YOUR_NAMESPACE" with actual namespace
+    tpl_path = script_dir / "templates"
+    for file in tpl_path.iterdir():
+        file_path = tpl_path / file
+        with open(file_path, "r") as f:
+            code = f.read()
+            code = code.replace("YOUR_NAMESPACE", ctx.namespace)
+            with open(output_dir / file, "w") as ff:
+                ff.write(code)
+
+
+def generate_code(schema_file: Path, output_dir: Path, script_dir: Path):
     with open(schema_file, "r") as file:
         schema = json.load(file)
 
     ctx = GenContext(schema)
 
+    # ensure target dir exists
     os.makedirs(output_dir, exist_ok=True)
 
+    # ensure target dir is empty to clear stale files
+    [shutil.rmtree(p) if p.is_dir() else p.unlink() for p in output_dir.iterdir()]
+
     for enum_name, enum_def in ctx.enums.items():
-        jl_code = generate_enum(ctx, enum_def)
+        gen_code = generate_enum(ctx, enum_def)
 
         # write to file
-        with open(f"{output_dir}/{enum_name}.jl", "w") as file:
-            file.write(jl_code)
+        with open(output_dir / f"{enum_name}.jl", "w") as file:
+            file.write(gen_code)
 
     for struct_name, struct_def in ctx.structs.items():
-        jl_code = generate_struct(ctx, struct_def)
+        gen_code = generate_struct(ctx, struct_def)
 
         # write to file
-        with open(f"{output_dir}/{struct_name}.jl", "w") as file:
-            file.write(jl_code)
+        with open(output_dir / f"{struct_name}.jl", "w") as file:
+            file.write(gen_code)
 
     # single include header file
     generate_single_include_file(output_dir, ctx)
+
+    # move template files to output directory
+    move_template_files(output_dir, ctx, script_dir)
 
 
 if __name__ == "__main__":
@@ -801,6 +792,7 @@ if __name__ == "__main__":
         print("Usage: python fastbin_jl.py <schema.json> <output_dir>")
         sys.exit(1)
 
-    schema_file = sys.argv[1]
-    output_dir = sys.argv[2]
-    generate_jl_code(schema_file, output_dir)
+    script_dir = Path(__file__).resolve().parent
+    schema_file = Path(sys.argv[1]).resolve()
+    output_dir = Path(sys.argv[2]).resolve()
+    generate_code(schema_file, output_dir, script_dir)
