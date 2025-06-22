@@ -13,7 +13,7 @@
 #include "_traits.hpp"
 #include "_BufferStored.hpp"
 
-namespace my_models
+namespace YOUR_NAMESPACE
 {
 /**
  * A contiguous array of elements of type T.
@@ -345,4 +345,4 @@ struct is_variable_size<StructArray<T>>
 {
     static constexpr bool value = true;
 };
-}; // namespace my_models
+}; // namespace YOUR_NAMESPACE

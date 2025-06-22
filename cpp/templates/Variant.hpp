@@ -9,7 +9,7 @@
 #include "_traits.hpp"
 #include "_BufferStored.hpp"
 
-namespace my_models
+namespace YOUR_NAMESPACE
 {
 // Support primitive types / enums
 template <typename T>
@@ -328,4 +328,4 @@ struct is_variable_size<Variant<Types...>>
 {
     static constexpr bool value = true;
 };
-} // namespace my_models
+} // namespace YOUR_NAMESPACE

@@ -4,7 +4,7 @@
 
 #include "_traits.hpp"
 
-namespace my_models
+namespace YOUR_NAMESPACE
 {
 template <typename T>
 class BufferStored
@@ -94,4 +94,4 @@ public:
         return {dest_buffer, buffer_size, true};
     }
 };
-} // namespace my_models
+} // namespace YOUR_NAMESPACE
