@@ -1,5 +1,10 @@
 #pragma once
 
+#include <bit>
+
+static_assert(std::endian::native == std::endian::little);
+static_assert(sizeof(size_t) == 8, "fastbin requires 64-bit size_t");
+
 #include "TradeSide.hpp"
 #include "OrderbookType.hpp"
 #include "TickDirection.hpp"

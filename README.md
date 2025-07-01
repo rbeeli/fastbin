@@ -16,11 +16,11 @@ The generated code can be used in the C++ and Julia applications, and the data o
 - Zero-copy serialization and deserialization
 - Generation of C++ and Julia code from JSON schema file
 - No dynamic memory allocation
-- Documentation (docstrings) of data objects in JSON schema file
 - Support for enumeration types
 - Support for nested structs
 - Support for arrays of fixed-size primitives and structs
 - Support for arrays of variable-size structs
+- Documentation (docstrings) of data objects in JSON schema file
 
 ### Supported languages
 
@@ -121,6 +121,8 @@ JSON is preferred over other (prioprietary) schema formats because it is human-r
 - No support for polymorphic types
 - No support for unions
 - No support for circular references
+- On-wire and machine endianness assume to be **little-endian**
+- Only supports **64-bit architectures** (e.g. x86_64, ARM64) due to 64-bit word size and alignment
 
 # Similar projects
 

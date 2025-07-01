@@ -957,6 +957,11 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
 def generate_single_include_file(output_dir: Path, ctx: GenContext):
     code = "#pragma once\n"
     code += "\n"
+    code += "#include <bit>\n"
+    code += "\n"
+    code += "static_assert(std::endian::native == std::endian::little);\n"
+    code += "static_assert(sizeof(size_t) == 8, \"fastbin requires 64-bit size_t\");\n"
+    code += "\n"
 
     for enum_name in ctx.enums.keys():
         code += f'#include "{enum_name}.hpp"\n'
