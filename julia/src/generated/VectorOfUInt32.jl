@@ -10,7 +10,7 @@ All setter methods starting from the first variable-sized member and afterwards 
 
 Members in order
 ================
-- `values::Vector{ChildFixed}` (variable)
+- `values::Vector{UInt32}` (variable)
 - `str::StringView`        (variable)
 
 The `fastbin_finalize!()` method MUST be called after all setter methods have been called.
@@ -18,66 +18,75 @@ The `fastbin_finalize!()` method MUST be called after all setter methods have be
 It is the responsibility of the caller to ensure that the buffer is
 large enough to hold all data.
 """
-mutable struct VectorOfFixedSizedStructs
+mutable struct VectorOfUInt32
     buffer::Ptr{UInt8}
     buffer_size::UInt64
     owns_buffer::Bool
 
-    function VectorOfFixedSizedStructs(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
-        new(buffer, buffer_size, owns_buffer)
+    function VectorOfUInt32(buffer::Ptr{UInt8}, buffer_size::Integer, owns_buffer::Bool)
+        owns_buffer || (@assert iszero(UInt(buffer) & 0x7) "Buffer not 8 byte aligned")
+        new(buffer, UInt64(buffer_size), owns_buffer)
     end
 
-    function VectorOfFixedSizedStructs(buffer_size::Integer)
+    function VectorOfUInt32(buffer_size::Integer)
         buffer = reinterpret(Ptr{UInt8}, Base.Libc.malloc(buffer_size))
         obj = new(buffer, buffer_size, true)
         finalizer(_finalize!, obj)
     end
 end
 
-_finalize!(obj::VectorOfFixedSizedStructs) = Base.Libc.free(obj.buffer)
+_finalize!(obj::VectorOfUInt32) = Base.Libc.free(obj.buffer)
 
 
-# Member: values::Vector{ChildFixed}
+# Member: values::Vector{UInt32}
 
-@inline function values(obj::VectorOfFixedSizedStructs)::Vector{ChildFixed}
-    ptr::Ptr{ChildFixed} = reinterpret(Ptr{ChildFixed}, obj.buffer + _values_offset(obj))
+@inline function values(obj::VectorOfUInt32)::Vector{UInt32}
+    ptr::Ptr{UInt32} = reinterpret(Ptr{UInt32}, obj.buffer + _values_offset(obj))
     unaligned_size::UInt64 = _values_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
-    count::UInt64 = n_bytes / 16
-    return unsafe_wrap(Vector{ChildFixed}, ptr + 8, count, own=false)
+    count::UInt64 = n_bytes >> 2
+    return unsafe_wrap(Vector{UInt32}, ptr + 8, count, own=false)
 end
 
-@inline function values!(obj::VectorOfFixedSizedStructs, value::Vector{ChildFixed})
+@inline function values!(obj::VectorOfUInt32, value::Vector{UInt32})
     offset::UInt64 = _values_offset(obj)
-    contents_size::UInt64 = length(value) * 16
-    unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), 8 + contents_size)
+    contents_size::UInt64 = length(value) * 4
+    unaligned_size::UInt64 = 8 + contents_size
+    aligned_size::UInt64 = (unaligned_size + 7) & ~7
+    aligned_diff::UInt64 = aligned_size - unaligned_size
+    aligned_size_high::UInt64 = aligned_size | (aligned_diff << 56)
+    unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), aligned_size_high)
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
 end
 
-@inline function _values_offset(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function _values_offset(obj::VectorOfUInt32)::UInt64
     return 8
 end
 
-@inline function _values_size_aligned(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function _values_size_aligned(obj::VectorOfUInt32)::UInt64
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _values_offset(obj)))
-    return stored_size
+    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
+    return aligned_size
 end
 
-@inline function _values_calc_size_aligned(::Type{VectorOfFixedSizedStructs}, value::Vector{ChildFixed})::UInt64
-    contents_size::UInt64 = length(value) * 16
-    return 8 + contents_size
+@inline function _values_calc_size_aligned(::Type{VectorOfUInt32}, value::Vector{UInt32})::UInt64
+    contents_size::UInt64 = length(value) * 4
+    unaligned_size::UInt64 = 8 + contents_size
+    return (unaligned_size + 7) & ~7
 end
 
-@inline function _values_size_unaligned(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function _values_size_unaligned(obj::VectorOfUInt32)::UInt64
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _values_offset(obj)))
-    return stored_size
+    aligned_diff::UInt64 = stored_size >> 56
+    aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
+    return aligned_size - aligned_diff
 end
 
 # Member: str::StringView
 
-@inline function str(obj::VectorOfFixedSizedStructs)::StringView
+@inline function str(obj::VectorOfUInt32)::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _str_offset(obj))
     unaligned_size::UInt64 = _str_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -85,7 +94,7 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function str!(obj::VectorOfFixedSizedStructs, value::T) where {T<:AbstractString}
+@inline function str!(obj::VectorOfUInt32, value::T) where {T<:AbstractString}
     offset::UInt64 = _str_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -98,23 +107,23 @@ end
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
 end
 
-@inline function _str_offset(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function _str_offset(obj::VectorOfUInt32)::UInt64
     return _values_offset(obj) + _values_size_aligned(obj)
 end
 
-@inline function _str_size_aligned(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function _str_size_aligned(obj::VectorOfUInt32)::UInt64
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _str_offset(obj)))
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
     return aligned_size
 end
 
-@inline function _str_calc_size_aligned(::Type{VectorOfFixedSizedStructs}, value::T)::UInt64 where {T<:AbstractString}
+@inline function _str_calc_size_aligned(::Type{VectorOfUInt32}, value::T)::UInt64 where {T<:AbstractString}
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
     return (unaligned_size + 7) & ~7
 end
 
-@inline function _str_size_unaligned(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function _str_size_unaligned(obj::VectorOfUInt32)::UInt64
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _str_offset(obj)))
     aligned_diff::UInt64 = stored_size >> 56
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
@@ -123,24 +132,24 @@ end
 
 # --------------------------------------------------------------------
 
-@inline function fastbin_calc_binary_size(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function fastbin_calc_binary_size(obj::VectorOfUInt32)::UInt64
     return _str_offset(obj) + _str_size_aligned(obj)
 end
 
-@inline function fastbin_calc_binary_size(::Type{VectorOfFixedSizedStructs},
-    values::Vector{ChildFixed},
+@inline function fastbin_calc_binary_size(::Type{VectorOfUInt32},
+    values::Vector{UInt32},
     str::StringView
 )
     return 8 +
-        _values_calc_size_aligned(VectorOfFixedSizedStructs, values) +
-        _str_calc_size_aligned(VectorOfFixedSizedStructs, str)
+        _values_calc_size_aligned(VectorOfUInt32, values) +
+        _str_calc_size_aligned(VectorOfUInt32, str)
 end
 
 """
 Returns the stored (aligned) binary size of the object.
 This function should only be called after `fastbin_finalize!(obj)`.
 """
-@inline function fastbin_binary_size(obj::VectorOfFixedSizedStructs)::UInt64
+@inline function fastbin_binary_size(obj::VectorOfUInt32)::UInt64
     return unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer))
 end
 
@@ -149,13 +158,13 @@ Finalizes the object by writing the binary size to the beginning of its buffer.
 After calling this function, the underlying buffer can be used for serialization.
 To get the actual buffer size, call `fastbin_binary_size(obj)`.
 """
-@inline function fastbin_finalize!(obj::VectorOfFixedSizedStructs)
+@inline function fastbin_finalize!(obj::VectorOfUInt32)
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer), fastbin_calc_binary_size(obj))
     nothing
 end
 
-function show(io::IO, obj::VectorOfFixedSizedStructs)
-    print(io, "[my_models::VectorOfFixedSizedStructs]")
+function show(io::IO, obj::VectorOfUInt32)
+    print(io, "[my_models::VectorOfUInt32]")
     print(io, "\n    values: ")
     show(io, values(obj))
     print(io, "\n    str: ")

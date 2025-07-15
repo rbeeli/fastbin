@@ -35,8 +35,9 @@ mutable struct StreamTrade
     buffer_size::UInt64
     owns_buffer::Bool
 
-    function StreamTrade(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
-        new(buffer, buffer_size, owns_buffer)
+    function StreamTrade(buffer::Ptr{UInt8}, buffer_size::Integer, owns_buffer::Bool)
+        owns_buffer || (@assert iszero(UInt(buffer) & 0x7) "Buffer not 8 byte aligned")
+        new(buffer, UInt64(buffer_size), owns_buffer)
     end
 
     function StreamTrade(buffer_size::Integer)

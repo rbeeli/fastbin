@@ -25,8 +25,9 @@ mutable struct Parent
     buffer_size::UInt64
     owns_buffer::Bool
 
-    function Parent(buffer::Ptr{UInt8}, buffer_size::UInt64, owns_buffer::Bool)
-        new(buffer, buffer_size, owns_buffer)
+    function Parent(buffer::Ptr{UInt8}, buffer_size::Integer, owns_buffer::Bool)
+        owns_buffer || (@assert iszero(UInt(buffer) & 0x7) "Buffer not 8 byte aligned")
+        new(buffer, UInt64(buffer_size), owns_buffer)
     end
 
     function Parent(buffer_size::Integer)
@@ -70,9 +71,9 @@ end
 end
 
 @inline function child1!(obj::Parent, value::ChildFixed)
-    @assert binary_size(value) > 0 "Cannot set member `child1`, parameter struct of type `ChildFixed` not finalized. Call fastbin_finalize!(obj) on struct after creation."
+    @assert fastbin_binary_size(value) > 0 "Cannot set member `child1`, parameter struct of type `ChildFixed` not finalized. Call fastbin_finalize!(obj) on struct after creation."
     offset::UInt64 = _child1_offset(obj)
-    size::UInt64 = binary_size(value)
+    size::UInt64 = fastbin_binary_size(value)
     unsafe_copyto!(obj.buffer + offset, value.buffer, size)
 end
 
@@ -85,7 +86,7 @@ end
 end
 
 @inline function _child1_calc_size_aligned(::Type{Parent}, value::ChildFixed)::UInt64
-    return binary_size(value)
+    return fastbin_binary_size(value)
 end
 
 
@@ -97,9 +98,9 @@ end
 end
 
 @inline function child2!(obj::Parent, value::ChildVar)
-    @assert binary_size(value) > 0 "Cannot set member `child2`, parameter struct of type `ChildVar` not finalized. Call fastbin_finalize!(obj) on struct after creation."
+    @assert fastbin_binary_size(value) > 0 "Cannot set member `child2`, parameter struct of type `ChildVar` not finalized. Call fastbin_finalize!(obj) on struct after creation."
     offset::UInt64 = _child2_offset(obj)
-    size::UInt64 = binary_size(value)
+    size::UInt64 = fastbin_binary_size(value)
     unsafe_copyto!(obj.buffer + offset, value.buffer, size)
 end
 
@@ -112,7 +113,7 @@ end
 end
 
 @inline function _child2_calc_size_aligned(::Type{Parent}, value::ChildVar)::UInt64
-    return binary_size(value)
+    return fastbin_binary_size(value)
 end
 
 

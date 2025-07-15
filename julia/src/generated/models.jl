@@ -14,7 +14,7 @@ include("VectorOfFixedSizedStructs.jl")
 
 # export all types and functions
 for n in names(@__MODULE__; all=true)
-    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)
+    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include) && !startswith(string(n), "_")
         @eval export $n
     end
 end
