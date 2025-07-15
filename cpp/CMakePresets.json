@@ -77,7 +77,7 @@
         "inherits": ["_gcc"],
         "cacheVariables": {
           "CMAKE_BUILD_TYPE": "Debug",
-          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0 -fsanitize=leak -fsanitize=address -fsanitize=undefined"
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0 -fsanitize=leak,address,undefined"
         }
       },
       {
@@ -86,7 +86,7 @@
         "inherits": ["_clang"],
         "cacheVariables": {
           "CMAKE_BUILD_TYPE": "Debug",
-          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0 -fsanitize=leak -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -funwind-tables"
+          "CMAKE_CXX_FLAGS": "$env{CMAKE_CXX_FLAGS} -ggdb -O0 -fsanitize=leak,address,undefined -fno-omit-frame-pointer -funwind-tables"
         }
       },
       {

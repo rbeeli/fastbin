@@ -75,6 +75,13 @@
         "__tree": "cpp",
         "queue": "cpp",
         "stack": "cpp",
-        "text_encoding": "cpp"
+        "text_encoding": "cpp",
+        "complex": "cpp",
+        "csignal": "cpp",
+        "cstdarg": "cpp",
+        "expected": "cpp",
+        "random": "cpp",
+        "source_location": "cpp",
+        "fstream": "cpp"
     }
 }
