@@ -721,20 +721,11 @@ def generate_single_include_file(output_dir: str, ctx: GenContext):
     code += "# export all types and functions\n"
     code += "for n in names(@__MODULE__; all=true)\n"
     code += (
-        "    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)\n"
+        "    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include) && !startswith(string(n), \"_\")\n"
     )
-    # code += f'        println("Exporting: $n")\n'
     code += "        @eval export $n\n"
     code += "    end\n"
     code += "end\n\n"
-
-    # # export all enums
-    # if len(ctx.enums) > 0:
-    #     code += f'export {", ".join(ctx.enums.keys())}\n\n'
-
-    # # export all structs
-    # if len(ctx.structs) > 0:
-    #     code += f'export {", ".join(ctx.structs.keys())}\n\n'
 
     code += "end\n"
 
