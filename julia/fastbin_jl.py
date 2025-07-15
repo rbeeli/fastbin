@@ -592,8 +592,9 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
 
     # constructors
     code += "\n"
-    code += f"    function {struct_def.name}(buffer::Ptr{{UInt8}}, buffer_size::UInt64, owns_buffer::Bool)\n"
-    code += "        new(buffer, buffer_size, owns_buffer)\n"
+    code += f"    function {struct_def.name}(buffer::Ptr{{UInt8}}, buffer_size::Integer, owns_buffer::Bool)\n"
+    code += "        owns_buffer || (@assert iszero(UInt(buffer) & 0x7) \"Buffer not 8 byte aligned\")\n"
+    code += "        new(buffer, UInt64(buffer_size), owns_buffer)\n"
     code += "    end\n"
     code += "\n"
     code += f"    function {struct_def.name}(buffer_size::Integer)\n"
