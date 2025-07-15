@@ -364,9 +364,9 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
         code += "    unsafe_copyto!(dest_ptr, src_ptr, contents_size)\n"
     elif type_def.category == "s":
         # struct
-        code = f'    @assert binary_size(value) > 0 "Cannot set member `{member_def.name}`, parameter struct of type `{lang_type}` not finalized. Call fastbin_finalize!(obj) on struct after creation."\n'
+        code = f'    @assert fastbin_binary_size(value) > 0 "Cannot set member `{member_def.name}`, parameter struct of type `{lang_type}` not finalized. Call fastbin_finalize!(obj) on struct after creation."\n'
         code += f"    offset::UInt64 = {prefix}{member_def.name}_offset(obj)\n"
-        code += "    size::UInt64 = binary_size(value)\n"
+        code += "    size::UInt64 = fastbin_binary_size(value)\n"
         code += "    unsafe_copyto!(obj.buffer + offset, value.buffer, size)\n"
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
@@ -438,7 +438,7 @@ def generate_calc_size_aligned_member_body(
             code += "    return 8 + contents_size\n"
     elif type_def.category == "s":
         # struct
-        code = "    return binary_size(value)\n"
+        code = "    return fastbin_binary_size(value)\n"
     else:
         raise ValueError(f"Unknown type category: {type_def.category}")
 
