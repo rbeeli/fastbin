@@ -101,7 +101,7 @@ class GenContext:
             ),
             "char": TypeDef("p", "char", "char", "", 1, 8, False, True),
             "float32": TypeDef(
-                "p", "float32", "float", "#include <cstddef>", 8, 8, False, True
+                "p", "float32", "float", "#include <cstddef>", 4, 8, False, True
             ),
             "float64": TypeDef(
                 "p", "float64", "double", "#include <cstddef>", 8, 8, False, True
