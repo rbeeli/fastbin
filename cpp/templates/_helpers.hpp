@@ -1,14 +1,16 @@
 #pragma once
 
+#include <cstddef>
 #include <cstring>
-#include <bit>
 #include <type_traits>
 
 namespace YOUR_NAMESPACE
 {
 template <class T>
-    requires std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>
-[[gnu::always_inline]]
+concept Blittable = std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>;
+
+template <Blittable T>
+[[gnu::always_inline]] [[nodiscard]]
 inline T load_trivial(const std::byte* buffer, std::size_t offset) noexcept
 {
     T out;
@@ -16,8 +18,7 @@ inline T load_trivial(const std::byte* buffer, std::size_t offset) noexcept
     return out;
 }
 
-template <class T>
-    requires std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>
+template <Blittable T>
 [[gnu::always_inline]]
 inline void store_trivial(std::byte* buffer, std::size_t offset, T value) noexcept
 {
