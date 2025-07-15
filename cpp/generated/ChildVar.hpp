@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_helpers.hpp"
 #include "_BufferStored.hpp"
 
 namespace my_models
@@ -65,12 +66,12 @@ public:
 
     inline std::int32_t field1() const noexcept
     {
-        return *reinterpret_cast<const std::int32_t*>(buffer + _field1_offset());
+        return load_trivial<std::int32_t>(buffer, _field1_offset());
     }
 
     inline void field1(const std::int32_t value) noexcept
     {
-        *reinterpret_cast<std::int32_t*>(buffer + _field1_offset()) = value;
+        store_trivial<std::int32_t>(buffer, _field1_offset(), value);
     }
 
     constexpr inline size_t _field1_offset() const noexcept
@@ -106,7 +107,7 @@ public:
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        store_trivial<size_t>(buffer, offset, aligned_size_high);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -119,7 +120,7 @@ public:
 
     constexpr inline size_t _field2_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _field2_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _field2_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
@@ -133,7 +134,7 @@ public:
 
     constexpr inline size_t _field2_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _field2_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _field2_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
@@ -159,7 +160,7 @@ public:
      */
     constexpr inline size_t fastbin_binary_size() const noexcept
     {
-        return *reinterpret_cast<size_t*>(buffer);
+        return load_trivial<size_t>(buffer, 0);
     }
 
     /**
@@ -169,7 +170,7 @@ public:
      */
     inline void fastbin_finalize() noexcept
     {
-        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
+        store_trivial<size_t>(buffer, 0, fastbin_calc_binary_size());
     }
 };
 

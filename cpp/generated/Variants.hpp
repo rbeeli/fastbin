@@ -6,6 +6,7 @@
 #include <ostream>
 #include <span>
 #include "_traits.hpp"
+#include "_helpers.hpp"
 #include "_BufferStored.hpp"
 #include "Variant.hpp"
 
@@ -66,7 +67,7 @@ public:
     inline Variant<std::int32_t, std::int64_t, std::uint8_t> primitives() const noexcept
     {
         size_t offset = _primitives_offset();
-        size_t aligned_size_high = *reinterpret_cast<size_t*>(buffer + offset);
+        size_t aligned_size_high = load_trivial<size_t>(buffer, offset);
         size_t aligned_size = aligned_size_high & 0x00FFFFFFFFFFFFFF;
         size_t aligned_diff = aligned_size_high >> 56;
         auto ptr = buffer + offset + 8;
@@ -82,7 +83,7 @@ public:
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        store_trivial<size_t>(buffer, offset, aligned_size_high);
         auto dest_ptr = buffer + offset + 8;
         std::copy(value.buffer, value.buffer + contents_size, dest_ptr);
     }
@@ -94,7 +95,7 @@ public:
 
     constexpr inline size_t _primitives_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _primitives_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _primitives_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
@@ -112,7 +113,7 @@ public:
     inline Variant<std::string_view, double, bool> primitives_and_string() const noexcept
     {
         size_t offset = _primitives_and_string_offset();
-        size_t aligned_size_high = *reinterpret_cast<size_t*>(buffer + offset);
+        size_t aligned_size_high = load_trivial<size_t>(buffer, offset);
         size_t aligned_size = aligned_size_high & 0x00FFFFFFFFFFFFFF;
         size_t aligned_diff = aligned_size_high >> 56;
         auto ptr = buffer + offset + 8;
@@ -128,7 +129,7 @@ public:
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        store_trivial<size_t>(buffer, offset, aligned_size_high);
         auto dest_ptr = buffer + offset + 8;
         std::copy(value.buffer, value.buffer + contents_size, dest_ptr);
     }
@@ -140,7 +141,7 @@ public:
 
     constexpr inline size_t _primitives_and_string_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _primitives_and_string_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _primitives_and_string_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
@@ -158,7 +159,7 @@ public:
     inline Variant<ChildFixed, ChildVar> structs() const noexcept
     {
         size_t offset = _structs_offset();
-        size_t aligned_size_high = *reinterpret_cast<size_t*>(buffer + offset);
+        size_t aligned_size_high = load_trivial<size_t>(buffer, offset);
         size_t aligned_size = aligned_size_high & 0x00FFFFFFFFFFFFFF;
         size_t aligned_diff = aligned_size_high >> 56;
         auto ptr = buffer + offset + 8;
@@ -174,7 +175,7 @@ public:
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        store_trivial<size_t>(buffer, offset, aligned_size_high);
         auto dest_ptr = buffer + offset + 8;
         std::copy(value.buffer, value.buffer + contents_size, dest_ptr);
     }
@@ -186,7 +187,7 @@ public:
 
     constexpr inline size_t _structs_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _structs_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _structs_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
@@ -223,7 +224,7 @@ public:
      */
     constexpr inline size_t fastbin_binary_size() const noexcept
     {
-        return *reinterpret_cast<size_t*>(buffer);
+        return load_trivial<size_t>(buffer, 0);
     }
 
     /**
@@ -233,7 +234,7 @@ public:
      */
     inline void fastbin_finalize() noexcept
     {
-        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
+        store_trivial<size_t>(buffer, 0, fastbin_calc_binary_size());
     }
 };
 

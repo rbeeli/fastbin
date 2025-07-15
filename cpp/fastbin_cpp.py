@@ -390,10 +390,13 @@ def generate_get_member_body(ctx: GenContext, member_def: StructMemberDef):
 
     if type_def.category == "e":
         # enum
-        code = f"        return static_cast<{lang_type}>(*reinterpret_cast<const {lang_type}*>(buffer + {prefix}{member_def.name}_offset()));\n"
+        code = (
+            f"        auto raw = load_trivial<std::underlying_type_t<{lang_type}>>(buffer, {prefix}{member_def.name}_offset());\n"
+            f"        return static_cast<{lang_type}>(raw);\n"
+        )
     elif type_def.category == "p":
         # primitive
-        code = f"        return *reinterpret_cast<const {lang_type}*>(buffer + {prefix}{member_def.name}_offset());\n"
+        code = f"        return load_trivial<{lang_type}>(buffer, {prefix}{member_def.name}_offset());\n"
     elif type_def.category == "s":
         # struct
         code = f"        auto ptr = buffer + {prefix}{member_def.name}_offset();\n"
@@ -430,7 +433,7 @@ def generate_get_member_body(ctx: GenContext, member_def: StructMemberDef):
     elif type_def.category == "v":
         # variant
         code = f"        size_t offset = {prefix}{member_def.name}_offset();\n"
-        code += "        size_t aligned_size_high = *reinterpret_cast<size_t*>(buffer + offset);\n"
+        code += "        size_t aligned_size_high = load_trivial<size_t>(buffer, offset);\n"
         code += "        size_t aligned_size = aligned_size_high & 0x00FFFFFFFFFFFFFF;\n"  # remove 8 high-bits
         code += "        size_t aligned_diff = aligned_size_high >> 56;\n"
         code += "        auto ptr = buffer + offset + 8;\n"
@@ -447,10 +450,14 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
 
     if type_def.category == "e":
         # enum
-        code = f"        *reinterpret_cast<{lang_type}*>(buffer + {prefix}{member_def.name}_offset()) = static_cast<{lang_type}>(value);\n"
+        code = (
+            f"        store_trivial<std::underlying_type_t<{lang_type}>>(buffer, "
+            f"{prefix}{member_def.name}_offset(), "
+            f"static_cast<std::underlying_type_t<{lang_type}>>(value));\n"
+        )
     elif type_def.category == "p":
         # primitive
-        code = f"        *reinterpret_cast<{lang_type}*>(buffer + {prefix}{member_def.name}_offset()) = value;\n"
+        code = f"        store_trivial<{lang_type}>(buffer, {prefix}{member_def.name}_offset(), value);\n"
     elif type_def.category == "s":
         # struct
         code = f'        assert(value.fastbin_binary_size() > 0 && "Cannot set member `{member_def.name}`, parameter of struct type `{lang_type}` not finalized. Call fastbin_finalize() on struct after creation.");\n'
@@ -472,7 +479,7 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
             "        size_t aligned_size_high = aligned_size | (aligned_diff << 56);\n"
         )
         code += (
-            "        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;\n"
+            "        store_trivial<size_t>(buffer, offset, aligned_size_high);\n"
         )
         code += "        auto dest_ptr = buffer + offset + 8;\n"
         code += (
@@ -494,10 +501,10 @@ def generate_set_member_body(ctx: GenContext, member_def: StructMemberDef):
                 code += "        size_t aligned_diff = aligned_size - unaligned_size;\n"
                 # add diff to high-bits of aligned_size
                 code += "        size_t aligned_size_high = aligned_size | (aligned_diff << 56);\n"
-                code += "        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;\n"
+                code += "        store_trivial<size_t>(buffer, offset, aligned_size_high);\n"
             else:
                 # element size is divisible by 8, no alignment adjustment needed
-                code += "        *reinterpret_cast<size_t*>(buffer + offset) = 8 + contents_size;\n"
+                code += "        store_trivial<size_t>(buffer, offset, 8 + contents_size);\n"
             code += "        auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);\n"
             code += "        auto src_ptr = reinterpret_cast<const std::byte*>(value.data());\n"
             code += "        std::copy(src_ptr, src_ptr + contents_size, dest_ptr);\n"
@@ -531,7 +538,7 @@ def generate_size_member_body(
     elif type_def.category == "c":
         # container with variable length (string, vector<T>)
         el_type_def = type_def.element_type_def
-        code = f"        size_t stored_size = *reinterpret_cast<size_t*>(buffer + {prefix}{member_def.name}_offset());\n"
+        code = f"        size_t stored_size = load_trivial<size_t>(buffer, {prefix}{member_def.name}_offset());\n"
         maybe_unaligned = el_type_def.native_size % 8 != 0
         if maybe_unaligned:
             # string or vector<T> with size of T not divisible by 8
@@ -546,7 +553,7 @@ def generate_size_member_body(
             code += "        return stored_size;\n"
     elif type_def.category == "v":
         # variant
-        code = f"        size_t stored_size = *reinterpret_cast<size_t*>(buffer + {prefix}{member_def.name}_offset());\n"
+        code = f"        size_t stored_size = load_trivial<size_t>(buffer, {prefix}{member_def.name}_offset());\n"
         code += "        size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;\n"  # remove 8 high-bits
         if unaligned_size:
             code += "        size_t aligned_diff = stored_size >> 56;\n"
@@ -556,7 +563,7 @@ def generate_size_member_body(
     elif type_def.category == "s":
         # structs are always aligned to 8 bytes
         if type_def.variable_length:
-            code = f"        return *reinterpret_cast<size_t*>(buffer + {prefix}{member_def.name}_offset());\n"
+            code = f"        return load_trivial<size_t>(buffer, {prefix}{member_def.name}_offset());\n"
         else:
             code = f"        return {type_def.aligned_size};\n"
     else:
@@ -674,6 +681,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         "#include <ostream>",
         "#include <span>",
         '#include "_traits.hpp"',
+        '#include "_helpers.hpp"',
         '#include "_BufferStored.hpp"',
     ]
 
@@ -854,14 +862,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code += "    }\n"
 
     # binary size estimation helper
-    if not struct_def.type_def.variable_length:
-        # fixed size
-        code += "\n"
-        code += "    constexpr size_t fastbin_calc_binary_size() noexcept\n"
-        code += "    {\n"
-        code += f"        return {struct_def.type_def.aligned_size};\n"
-        code += "    }\n"
-    else:
+    if struct_def.type_def.variable_length:
         # variable length.
         # calculate size based on the fixed size + the size of all variable-length members
         var_members = [
@@ -901,7 +902,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code += "    constexpr inline size_t fastbin_binary_size() const noexcept\n"
     code += "    {\n"
     if struct_def.type_def.variable_length:
-        code += "        return *reinterpret_cast<size_t*>(buffer);\n"
+        code += "        return load_trivial<size_t>(buffer, 0);\n"
     else:
         code += f"        return {struct_def.type_def.aligned_size};\n"
     code += "    }\n"
@@ -925,7 +926,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code += "    {\n"
     if struct_def.type_def.variable_length:
         code += (
-            "        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();\n"
+            "        store_trivial<size_t>(buffer, 0, fastbin_calc_binary_size());\n"
         )
     code += "    }\n"
 

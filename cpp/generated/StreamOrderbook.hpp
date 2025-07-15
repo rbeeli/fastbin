@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_helpers.hpp"
 #include "_BufferStored.hpp"
 #include "OrderbookType.hpp"
 
@@ -80,12 +81,12 @@ public:
 
     inline std::int64_t server_time() const noexcept
     {
-        return *reinterpret_cast<const std::int64_t*>(buffer + _server_time_offset());
+        return load_trivial<std::int64_t>(buffer, _server_time_offset());
     }
 
     inline void server_time(const std::int64_t value) noexcept
     {
-        *reinterpret_cast<std::int64_t*>(buffer + _server_time_offset()) = value;
+        store_trivial<std::int64_t>(buffer, _server_time_offset(), value);
     }
 
     constexpr inline size_t _server_time_offset() const noexcept
@@ -108,12 +109,12 @@ public:
 
     inline std::int64_t recv_time() const noexcept
     {
-        return *reinterpret_cast<const std::int64_t*>(buffer + _recv_time_offset());
+        return load_trivial<std::int64_t>(buffer, _recv_time_offset());
     }
 
     inline void recv_time(const std::int64_t value) noexcept
     {
-        *reinterpret_cast<std::int64_t*>(buffer + _recv_time_offset()) = value;
+        store_trivial<std::int64_t>(buffer, _recv_time_offset(), value);
     }
 
     constexpr inline size_t _recv_time_offset() const noexcept
@@ -136,12 +137,12 @@ public:
 
     inline std::int64_t cts() const noexcept
     {
-        return *reinterpret_cast<const std::int64_t*>(buffer + _cts_offset());
+        return load_trivial<std::int64_t>(buffer, _cts_offset());
     }
 
     inline void cts(const std::int64_t value) noexcept
     {
-        *reinterpret_cast<std::int64_t*>(buffer + _cts_offset()) = value;
+        store_trivial<std::int64_t>(buffer, _cts_offset(), value);
     }
 
     constexpr inline size_t _cts_offset() const noexcept
@@ -164,12 +165,13 @@ public:
 
     inline OrderbookType type() const noexcept
     {
-        return static_cast<OrderbookType>(*reinterpret_cast<const OrderbookType*>(buffer + _type_offset()));
+        auto raw = load_trivial<std::underlying_type_t<OrderbookType>>(buffer, _type_offset());
+        return static_cast<OrderbookType>(raw);
     }
 
     inline void type(const OrderbookType value) noexcept
     {
-        *reinterpret_cast<OrderbookType*>(buffer + _type_offset()) = static_cast<OrderbookType>(value);
+        store_trivial<std::underlying_type_t<OrderbookType>>(buffer, _type_offset(), static_cast<std::underlying_type_t<OrderbookType>>(value));
     }
 
     constexpr inline size_t _type_offset() const noexcept
@@ -192,12 +194,12 @@ public:
 
     inline std::uint16_t depth() const noexcept
     {
-        return *reinterpret_cast<const std::uint16_t*>(buffer + _depth_offset());
+        return load_trivial<std::uint16_t>(buffer, _depth_offset());
     }
 
     inline void depth(const std::uint16_t value) noexcept
     {
-        *reinterpret_cast<std::uint16_t*>(buffer + _depth_offset()) = value;
+        store_trivial<std::uint16_t>(buffer, _depth_offset(), value);
     }
 
     constexpr inline size_t _depth_offset() const noexcept
@@ -233,7 +235,7 @@ public:
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        store_trivial<size_t>(buffer, offset, aligned_size_high);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -246,7 +248,7 @@ public:
 
     constexpr inline size_t _symbol_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _symbol_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
@@ -260,7 +262,7 @@ public:
 
     constexpr inline size_t _symbol_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _symbol_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
@@ -270,12 +272,12 @@ public:
 
     inline std::uint64_t update_id() const noexcept
     {
-        return *reinterpret_cast<const std::uint64_t*>(buffer + _update_id_offset());
+        return load_trivial<std::uint64_t>(buffer, _update_id_offset());
     }
 
     inline void update_id(const std::uint64_t value) noexcept
     {
-        *reinterpret_cast<std::uint64_t*>(buffer + _update_id_offset()) = value;
+        store_trivial<std::uint64_t>(buffer, _update_id_offset(), value);
     }
 
     constexpr inline size_t _update_id_offset() const noexcept
@@ -298,12 +300,12 @@ public:
 
     inline std::uint64_t seq_num() const noexcept
     {
-        return *reinterpret_cast<const std::uint64_t*>(buffer + _seq_num_offset());
+        return load_trivial<std::uint64_t>(buffer, _seq_num_offset());
     }
 
     inline void seq_num(const std::uint64_t value) noexcept
     {
-        *reinterpret_cast<std::uint64_t*>(buffer + _seq_num_offset()) = value;
+        store_trivial<std::uint64_t>(buffer, _seq_num_offset(), value);
     }
 
     constexpr inline size_t _seq_num_offset() const noexcept
@@ -336,7 +338,7 @@ public:
     {
         size_t offset = _bid_prices_offset();
         size_t contents_size = value.size() * 8;
-        *reinterpret_cast<size_t*>(buffer + offset) = 8 + contents_size;
+        store_trivial<size_t>(buffer, offset, 8 + contents_size);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -349,7 +351,7 @@ public:
 
     constexpr inline size_t _bid_prices_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _bid_prices_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _bid_prices_offset());
         return stored_size;
     }
 
@@ -361,7 +363,7 @@ public:
 
     constexpr inline size_t _bid_prices_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _bid_prices_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _bid_prices_offset());
         return stored_size;
     }
 
@@ -379,7 +381,7 @@ public:
     {
         size_t offset = _bid_quantities_offset();
         size_t contents_size = value.size() * 8;
-        *reinterpret_cast<size_t*>(buffer + offset) = 8 + contents_size;
+        store_trivial<size_t>(buffer, offset, 8 + contents_size);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -392,7 +394,7 @@ public:
 
     constexpr inline size_t _bid_quantities_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _bid_quantities_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _bid_quantities_offset());
         return stored_size;
     }
 
@@ -404,7 +406,7 @@ public:
 
     constexpr inline size_t _bid_quantities_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _bid_quantities_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _bid_quantities_offset());
         return stored_size;
     }
 
@@ -422,7 +424,7 @@ public:
     {
         size_t offset = _ask_prices_offset();
         size_t contents_size = value.size() * 8;
-        *reinterpret_cast<size_t*>(buffer + offset) = 8 + contents_size;
+        store_trivial<size_t>(buffer, offset, 8 + contents_size);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -435,7 +437,7 @@ public:
 
     constexpr inline size_t _ask_prices_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _ask_prices_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _ask_prices_offset());
         return stored_size;
     }
 
@@ -447,7 +449,7 @@ public:
 
     constexpr inline size_t _ask_prices_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _ask_prices_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _ask_prices_offset());
         return stored_size;
     }
 
@@ -465,7 +467,7 @@ public:
     {
         size_t offset = _ask_quantities_offset();
         size_t contents_size = value.size() * 8;
-        *reinterpret_cast<size_t*>(buffer + offset) = 8 + contents_size;
+        store_trivial<size_t>(buffer, offset, 8 + contents_size);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -478,7 +480,7 @@ public:
 
     constexpr inline size_t _ask_quantities_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _ask_quantities_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _ask_quantities_offset());
         return stored_size;
     }
 
@@ -490,7 +492,7 @@ public:
 
     constexpr inline size_t _ask_quantities_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _ask_quantities_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _ask_quantities_offset());
         return stored_size;
     }
 
@@ -522,7 +524,7 @@ public:
      */
     constexpr inline size_t fastbin_binary_size() const noexcept
     {
-        return *reinterpret_cast<size_t*>(buffer);
+        return load_trivial<size_t>(buffer, 0);
     }
 
     /**
@@ -532,7 +534,7 @@ public:
      */
     inline void fastbin_finalize() noexcept
     {
-        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
+        store_trivial<size_t>(buffer, 0, fastbin_calc_binary_size());
     }
 };
 

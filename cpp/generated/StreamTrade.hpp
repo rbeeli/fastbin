@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string_view>
 #include "_traits.hpp"
+#include "_helpers.hpp"
 #include "_BufferStored.hpp"
 #include "TradeSide.hpp"
 #include "TickDirection.hpp"
@@ -79,12 +80,12 @@ public:
 
     inline std::int64_t server_time() const noexcept
     {
-        return *reinterpret_cast<const std::int64_t*>(buffer + _server_time_offset());
+        return load_trivial<std::int64_t>(buffer, _server_time_offset());
     }
 
     inline void server_time(const std::int64_t value) noexcept
     {
-        *reinterpret_cast<std::int64_t*>(buffer + _server_time_offset()) = value;
+        store_trivial<std::int64_t>(buffer, _server_time_offset(), value);
     }
 
     constexpr inline size_t _server_time_offset() const noexcept
@@ -107,12 +108,12 @@ public:
 
     inline std::int64_t recv_time() const noexcept
     {
-        return *reinterpret_cast<const std::int64_t*>(buffer + _recv_time_offset());
+        return load_trivial<std::int64_t>(buffer, _recv_time_offset());
     }
 
     inline void recv_time(const std::int64_t value) noexcept
     {
-        *reinterpret_cast<std::int64_t*>(buffer + _recv_time_offset()) = value;
+        store_trivial<std::int64_t>(buffer, _recv_time_offset(), value);
     }
 
     constexpr inline size_t _recv_time_offset() const noexcept
@@ -148,7 +149,7 @@ public:
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        store_trivial<size_t>(buffer, offset, aligned_size_high);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -161,7 +162,7 @@ public:
 
     constexpr inline size_t _symbol_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _symbol_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
@@ -175,7 +176,7 @@ public:
 
     constexpr inline size_t _symbol_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _symbol_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _symbol_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
@@ -185,12 +186,12 @@ public:
 
     inline std::int64_t fill_time() const noexcept
     {
-        return *reinterpret_cast<const std::int64_t*>(buffer + _fill_time_offset());
+        return load_trivial<std::int64_t>(buffer, _fill_time_offset());
     }
 
     inline void fill_time(const std::int64_t value) noexcept
     {
-        *reinterpret_cast<std::int64_t*>(buffer + _fill_time_offset()) = value;
+        store_trivial<std::int64_t>(buffer, _fill_time_offset(), value);
     }
 
     constexpr inline size_t _fill_time_offset() const noexcept
@@ -213,12 +214,13 @@ public:
 
     inline TradeSide side() const noexcept
     {
-        return static_cast<TradeSide>(*reinterpret_cast<const TradeSide*>(buffer + _side_offset()));
+        auto raw = load_trivial<std::underlying_type_t<TradeSide>>(buffer, _side_offset());
+        return static_cast<TradeSide>(raw);
     }
 
     inline void side(const TradeSide value) noexcept
     {
-        *reinterpret_cast<TradeSide*>(buffer + _side_offset()) = static_cast<TradeSide>(value);
+        store_trivial<std::underlying_type_t<TradeSide>>(buffer, _side_offset(), static_cast<std::underlying_type_t<TradeSide>>(value));
     }
 
     constexpr inline size_t _side_offset() const noexcept
@@ -241,12 +243,12 @@ public:
 
     inline double price() const noexcept
     {
-        return *reinterpret_cast<const double*>(buffer + _price_offset());
+        return load_trivial<double>(buffer, _price_offset());
     }
 
     inline void price(const double value) noexcept
     {
-        *reinterpret_cast<double*>(buffer + _price_offset()) = value;
+        store_trivial<double>(buffer, _price_offset(), value);
     }
 
     constexpr inline size_t _price_offset() const noexcept
@@ -269,12 +271,13 @@ public:
 
     inline TickDirection price_chg_dir() const noexcept
     {
-        return static_cast<TickDirection>(*reinterpret_cast<const TickDirection*>(buffer + _price_chg_dir_offset()));
+        auto raw = load_trivial<std::underlying_type_t<TickDirection>>(buffer, _price_chg_dir_offset());
+        return static_cast<TickDirection>(raw);
     }
 
     inline void price_chg_dir(const TickDirection value) noexcept
     {
-        *reinterpret_cast<TickDirection*>(buffer + _price_chg_dir_offset()) = static_cast<TickDirection>(value);
+        store_trivial<std::underlying_type_t<TickDirection>>(buffer, _price_chg_dir_offset(), static_cast<std::underlying_type_t<TickDirection>>(value));
     }
 
     constexpr inline size_t _price_chg_dir_offset() const noexcept
@@ -297,12 +300,12 @@ public:
 
     inline double size() const noexcept
     {
-        return *reinterpret_cast<const double*>(buffer + _size_offset());
+        return load_trivial<double>(buffer, _size_offset());
     }
 
     inline void size(const double value) noexcept
     {
-        *reinterpret_cast<double*>(buffer + _size_offset()) = value;
+        store_trivial<double>(buffer, _size_offset(), value);
     }
 
     constexpr inline size_t _size_offset() const noexcept
@@ -338,7 +341,7 @@ public:
         size_t aligned_size = (unaligned_size + 7) & ~7;
         size_t aligned_diff = aligned_size - unaligned_size;
         size_t aligned_size_high = aligned_size | (aligned_diff << 56);
-        *reinterpret_cast<size_t*>(buffer + offset) = aligned_size_high;
+        store_trivial<size_t>(buffer, offset, aligned_size_high);
         auto dest_ptr = reinterpret_cast<std::byte*>(buffer + offset + 8);
         auto src_ptr = reinterpret_cast<const std::byte*>(value.data());
         std::copy(src_ptr, src_ptr + contents_size, dest_ptr);
@@ -351,7 +354,7 @@ public:
 
     constexpr inline size_t _trade_id_size_aligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _trade_id_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _trade_id_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         return aligned_size;
     }
@@ -365,7 +368,7 @@ public:
 
     constexpr inline size_t _trade_id_size_unaligned() const noexcept
     {
-        size_t stored_size = *reinterpret_cast<size_t*>(buffer + _trade_id_offset());
+        size_t stored_size = load_trivial<size_t>(buffer, _trade_id_offset());
         size_t aligned_size = stored_size & 0x00FFFFFFFFFFFFFF;
         size_t aligned_diff = stored_size >> 56;
         return aligned_size - aligned_diff;
@@ -375,12 +378,12 @@ public:
 
     inline bool block_trade() const noexcept
     {
-        return *reinterpret_cast<const bool*>(buffer + _block_trade_offset());
+        return load_trivial<bool>(buffer, _block_trade_offset());
     }
 
     inline void block_trade(const bool value) noexcept
     {
-        *reinterpret_cast<bool*>(buffer + _block_trade_offset()) = value;
+        store_trivial<bool>(buffer, _block_trade_offset(), value);
     }
 
     constexpr inline size_t _block_trade_offset() const noexcept
@@ -421,7 +424,7 @@ public:
      */
     constexpr inline size_t fastbin_binary_size() const noexcept
     {
-        return *reinterpret_cast<size_t*>(buffer);
+        return load_trivial<size_t>(buffer, 0);
     }
 
     static constexpr size_t fastbin_fixed_size() noexcept
@@ -436,7 +439,7 @@ public:
      */
     inline void fastbin_finalize() noexcept
     {
-        *reinterpret_cast<size_t*>(buffer) = fastbin_calc_binary_size();
+        store_trivial<size_t>(buffer, 0, fastbin_calc_binary_size());
     }
 };
 

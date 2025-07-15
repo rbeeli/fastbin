@@ -7,6 +7,7 @@
 #include <span>
 #include <cstdint>
 #include "_traits.hpp"
+#include "_helpers.hpp"
 #include "_BufferStored.hpp"
 
 namespace my_models
@@ -63,12 +64,12 @@ public:
 
     inline std::int32_t field1() const noexcept
     {
-        return *reinterpret_cast<const std::int32_t*>(buffer + _field1_offset());
+        return load_trivial<std::int32_t>(buffer, _field1_offset());
     }
 
     inline void field1(const std::int32_t value) noexcept
     {
-        *reinterpret_cast<std::int32_t*>(buffer + _field1_offset()) = value;
+        store_trivial<std::int32_t>(buffer, _field1_offset(), value);
     }
 
     constexpr inline size_t _field1_offset() const noexcept
@@ -91,12 +92,12 @@ public:
 
     inline std::int32_t field2() const noexcept
     {
-        return *reinterpret_cast<const std::int32_t*>(buffer + _field2_offset());
+        return load_trivial<std::int32_t>(buffer, _field2_offset());
     }
 
     inline void field2(const std::int32_t value) noexcept
     {
-        *reinterpret_cast<std::int32_t*>(buffer + _field2_offset()) = value;
+        store_trivial<std::int32_t>(buffer, _field2_offset(), value);
     }
 
     constexpr inline size_t _field2_offset() const noexcept
@@ -118,11 +119,6 @@ public:
     // --------------------------------------------------------------------------------
 
     constexpr inline size_t fastbin_calc_binary_size() const noexcept
-    {
-        return 16;
-    }
-
-    constexpr size_t fastbin_calc_binary_size() noexcept
     {
         return 16;
     }
