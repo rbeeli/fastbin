@@ -39,13 +39,18 @@ _finalize!(obj::ChildVar) = Base.Libc.free(obj.buffer)
 
 
 # Member: field1::Int32
-
-@inline function field1(obj::ChildVar)::Int32
+@inline function Base.getproperty(obj::ChildVar, ::Val{:field1})::Int32
     return unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)))
 end
 
-@inline function field1!(obj::ChildVar, value::Int32)
+@inline field1(obj::ChildVar)::Int32 = obj.field1
+
+@inline function Base.setproperty!(obj::ChildVar, ::Val{:field1}, value::Int32)
     unsafe_store!(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)), value)
+end
+
+@inline function field1!(obj::ChildVar, value::Int32)
+    obj.field1 = value
 end
 
 @inline function _field1_offset(obj::ChildVar)::UInt64
@@ -62,8 +67,7 @@ end
 
 
 # Member: field2::StringView
-
-@inline function field2(obj::ChildVar)::StringView
+@inline function Base.getproperty(obj::ChildVar, ::Val{:field2})::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _field2_offset(obj))
     unaligned_size::UInt64 = _field2_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -71,7 +75,9 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function field2!(obj::ChildVar, value::AbstractString)
+@inline field2(obj::ChildVar)::StringView = obj.field2
+
+@inline function Base.setproperty!(obj::ChildVar, ::Val{:field2}, value::AbstractString)
     offset::UInt64 = _field2_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -82,6 +88,10 @@ end
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function field2!(obj::ChildVar, value::AbstractString)
+    obj.field2 = value
 end
 
 @inline function _field2_offset(obj::ChildVar)::UInt64
@@ -105,6 +115,17 @@ end
     aligned_diff::UInt64 = stored_size >> 56
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
     return aligned_size - aligned_diff
+end
+@inline function Base.getproperty(obj::ChildVar, name::Symbol)
+    name === :field1 && return getproperty(obj, Val(:field1))
+    name === :field2 && return getproperty(obj, Val(:field2))
+    getfield(obj, name)
+end
+
+@inline function Base.setproperty!(obj::ChildVar, name::Symbol, value)
+    name === :field1 && return setproperty!(obj, Val(:field1), value)
+    name === :field2 && return setproperty!(obj, Val(:field2), value)
+    setfield!(obj, name, value)
 end
 
 # --------------------------------------------------------------------

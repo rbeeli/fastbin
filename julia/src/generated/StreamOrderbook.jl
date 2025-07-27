@@ -53,13 +53,18 @@ _finalize!(obj::StreamOrderbook) = Base.Libc.free(obj.buffer)
 
 
 # Member: server_time::Int64
-
-@inline function server_time(obj::StreamOrderbook)::Int64
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:server_time})::Int64
     return unsafe_load(reinterpret(Ptr{Int64}, obj.buffer + _server_time_offset(obj)))
 end
 
-@inline function server_time!(obj::StreamOrderbook, value::Int64)
+@inline server_time(obj::StreamOrderbook)::Int64 = obj.server_time
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:server_time}, value::Int64)
     unsafe_store!(reinterpret(Ptr{Int64}, obj.buffer + _server_time_offset(obj)), value)
+end
+
+@inline function server_time!(obj::StreamOrderbook, value::Int64)
+    obj.server_time = value
 end
 
 @inline function _server_time_offset(obj::StreamOrderbook)::UInt64
@@ -76,13 +81,18 @@ end
 
 
 # Member: recv_time::Int64
-
-@inline function recv_time(obj::StreamOrderbook)::Int64
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:recv_time})::Int64
     return unsafe_load(reinterpret(Ptr{Int64}, obj.buffer + _recv_time_offset(obj)))
 end
 
-@inline function recv_time!(obj::StreamOrderbook, value::Int64)
+@inline recv_time(obj::StreamOrderbook)::Int64 = obj.recv_time
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:recv_time}, value::Int64)
     unsafe_store!(reinterpret(Ptr{Int64}, obj.buffer + _recv_time_offset(obj)), value)
+end
+
+@inline function recv_time!(obj::StreamOrderbook, value::Int64)
+    obj.recv_time = value
 end
 
 @inline function _recv_time_offset(obj::StreamOrderbook)::UInt64
@@ -99,13 +109,18 @@ end
 
 
 # Member: cts::Int64
-
-@inline function cts(obj::StreamOrderbook)::Int64
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:cts})::Int64
     return unsafe_load(reinterpret(Ptr{Int64}, obj.buffer + _cts_offset(obj)))
 end
 
-@inline function cts!(obj::StreamOrderbook, value::Int64)
+@inline cts(obj::StreamOrderbook)::Int64 = obj.cts
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:cts}, value::Int64)
     unsafe_store!(reinterpret(Ptr{Int64}, obj.buffer + _cts_offset(obj)), value)
+end
+
+@inline function cts!(obj::StreamOrderbook, value::Int64)
+    obj.cts = value
 end
 
 @inline function _cts_offset(obj::StreamOrderbook)::UInt64
@@ -122,13 +137,18 @@ end
 
 
 # Member: type::OrderbookType.T
-
-@inline function type(obj::StreamOrderbook)::OrderbookType.T
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:type})::OrderbookType.T
     return unsafe_load(reinterpret(Ptr{OrderbookType.T}, obj.buffer + _type_offset(obj)))
 end
 
-@inline function type!(obj::StreamOrderbook, value::OrderbookType.T)
+@inline type(obj::StreamOrderbook)::OrderbookType.T = obj.type
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:type}, value::OrderbookType.T)
     unsafe_store!(reinterpret(Ptr{OrderbookType.T}, obj.buffer + _type_offset(obj)), value)
+end
+
+@inline function type!(obj::StreamOrderbook, value::OrderbookType.T)
+    obj.type = value
 end
 
 @inline function _type_offset(obj::StreamOrderbook)::UInt64
@@ -145,13 +165,18 @@ end
 
 
 # Member: depth::UInt16
-
-@inline function depth(obj::StreamOrderbook)::UInt16
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:depth})::UInt16
     return unsafe_load(reinterpret(Ptr{UInt16}, obj.buffer + _depth_offset(obj)))
 end
 
-@inline function depth!(obj::StreamOrderbook, value::UInt16)
+@inline depth(obj::StreamOrderbook)::UInt16 = obj.depth
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:depth}, value::UInt16)
     unsafe_store!(reinterpret(Ptr{UInt16}, obj.buffer + _depth_offset(obj)), value)
+end
+
+@inline function depth!(obj::StreamOrderbook, value::UInt16)
+    obj.depth = value
 end
 
 @inline function _depth_offset(obj::StreamOrderbook)::UInt64
@@ -168,8 +193,7 @@ end
 
 
 # Member: symbol::StringView
-
-@inline function symbol(obj::StreamOrderbook)::StringView
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:symbol})::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _symbol_offset(obj))
     unaligned_size::UInt64 = _symbol_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -177,7 +201,9 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function symbol!(obj::StreamOrderbook, value::AbstractString)
+@inline symbol(obj::StreamOrderbook)::StringView = obj.symbol
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:symbol}, value::AbstractString)
     offset::UInt64 = _symbol_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -188,6 +214,10 @@ end
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function symbol!(obj::StreamOrderbook, value::AbstractString)
+    obj.symbol = value
 end
 
 @inline function _symbol_offset(obj::StreamOrderbook)::UInt64
@@ -214,13 +244,18 @@ end
 end
 
 # Member: update_id::UInt64
-
-@inline function update_id(obj::StreamOrderbook)::UInt64
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:update_id})::UInt64
     return unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _update_id_offset(obj)))
 end
 
-@inline function update_id!(obj::StreamOrderbook, value::UInt64)
+@inline update_id(obj::StreamOrderbook)::UInt64 = obj.update_id
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:update_id}, value::UInt64)
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + _update_id_offset(obj)), value)
+end
+
+@inline function update_id!(obj::StreamOrderbook, value::UInt64)
+    obj.update_id = value
 end
 
 @inline function _update_id_offset(obj::StreamOrderbook)::UInt64
@@ -237,13 +272,18 @@ end
 
 
 # Member: seq_num::UInt64
-
-@inline function seq_num(obj::StreamOrderbook)::UInt64
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:seq_num})::UInt64
     return unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _seq_num_offset(obj)))
 end
 
-@inline function seq_num!(obj::StreamOrderbook, value::UInt64)
+@inline seq_num(obj::StreamOrderbook)::UInt64 = obj.seq_num
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:seq_num}, value::UInt64)
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + _seq_num_offset(obj)), value)
+end
+
+@inline function seq_num!(obj::StreamOrderbook, value::UInt64)
+    obj.seq_num = value
 end
 
 @inline function _seq_num_offset(obj::StreamOrderbook)::UInt64
@@ -260,8 +300,7 @@ end
 
 
 # Member: bid_prices::Vector{Float64}
-
-@inline function bid_prices(obj::StreamOrderbook)::Vector{Float64}
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:bid_prices})::Vector{Float64}
     ptr::Ptr{Float64} = reinterpret(Ptr{Float64}, obj.buffer + _bid_prices_offset(obj))
     unaligned_size::UInt64 = _bid_prices_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -269,13 +308,19 @@ end
     return unsafe_wrap(Vector{Float64}, ptr + 8, count, own=false)
 end
 
-@inline function bid_prices!(obj::StreamOrderbook, value::Vector{Float64})
+@inline bid_prices(obj::StreamOrderbook)::Vector{Float64} = obj.bid_prices
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:bid_prices}, value::Vector{Float64})
     offset::UInt64 = _bid_prices_offset(obj)
     contents_size::UInt64 = length(value) * 8
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), 8 + contents_size)
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function bid_prices!(obj::StreamOrderbook, value::Vector{Float64})
+    obj.bid_prices = value
 end
 
 @inline function _bid_prices_offset(obj::StreamOrderbook)::UInt64
@@ -298,8 +343,7 @@ end
 end
 
 # Member: bid_quantities::Vector{Float64}
-
-@inline function bid_quantities(obj::StreamOrderbook)::Vector{Float64}
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:bid_quantities})::Vector{Float64}
     ptr::Ptr{Float64} = reinterpret(Ptr{Float64}, obj.buffer + _bid_quantities_offset(obj))
     unaligned_size::UInt64 = _bid_quantities_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -307,13 +351,19 @@ end
     return unsafe_wrap(Vector{Float64}, ptr + 8, count, own=false)
 end
 
-@inline function bid_quantities!(obj::StreamOrderbook, value::Vector{Float64})
+@inline bid_quantities(obj::StreamOrderbook)::Vector{Float64} = obj.bid_quantities
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:bid_quantities}, value::Vector{Float64})
     offset::UInt64 = _bid_quantities_offset(obj)
     contents_size::UInt64 = length(value) * 8
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), 8 + contents_size)
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function bid_quantities!(obj::StreamOrderbook, value::Vector{Float64})
+    obj.bid_quantities = value
 end
 
 @inline function _bid_quantities_offset(obj::StreamOrderbook)::UInt64
@@ -336,8 +386,7 @@ end
 end
 
 # Member: ask_prices::Vector{Float64}
-
-@inline function ask_prices(obj::StreamOrderbook)::Vector{Float64}
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:ask_prices})::Vector{Float64}
     ptr::Ptr{Float64} = reinterpret(Ptr{Float64}, obj.buffer + _ask_prices_offset(obj))
     unaligned_size::UInt64 = _ask_prices_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -345,13 +394,19 @@ end
     return unsafe_wrap(Vector{Float64}, ptr + 8, count, own=false)
 end
 
-@inline function ask_prices!(obj::StreamOrderbook, value::Vector{Float64})
+@inline ask_prices(obj::StreamOrderbook)::Vector{Float64} = obj.ask_prices
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:ask_prices}, value::Vector{Float64})
     offset::UInt64 = _ask_prices_offset(obj)
     contents_size::UInt64 = length(value) * 8
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), 8 + contents_size)
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function ask_prices!(obj::StreamOrderbook, value::Vector{Float64})
+    obj.ask_prices = value
 end
 
 @inline function _ask_prices_offset(obj::StreamOrderbook)::UInt64
@@ -374,8 +429,7 @@ end
 end
 
 # Member: ask_quantities::Vector{Float64}
-
-@inline function ask_quantities(obj::StreamOrderbook)::Vector{Float64}
+@inline function Base.getproperty(obj::StreamOrderbook, ::Val{:ask_quantities})::Vector{Float64}
     ptr::Ptr{Float64} = reinterpret(Ptr{Float64}, obj.buffer + _ask_quantities_offset(obj))
     unaligned_size::UInt64 = _ask_quantities_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -383,13 +437,19 @@ end
     return unsafe_wrap(Vector{Float64}, ptr + 8, count, own=false)
 end
 
-@inline function ask_quantities!(obj::StreamOrderbook, value::Vector{Float64})
+@inline ask_quantities(obj::StreamOrderbook)::Vector{Float64} = obj.ask_quantities
+
+@inline function Base.setproperty!(obj::StreamOrderbook, ::Val{:ask_quantities}, value::Vector{Float64})
     offset::UInt64 = _ask_quantities_offset(obj)
     contents_size::UInt64 = length(value) * 8
     unsafe_store!(reinterpret(Ptr{UInt64}, obj.buffer + offset), 8 + contents_size)
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function ask_quantities!(obj::StreamOrderbook, value::Vector{Float64})
+    obj.ask_quantities = value
 end
 
 @inline function _ask_quantities_offset(obj::StreamOrderbook)::UInt64
@@ -409,6 +469,37 @@ end
 @inline function _ask_quantities_size_unaligned(obj::StreamOrderbook)::UInt64
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _ask_quantities_offset(obj)))
     return stored_size
+end
+@inline function Base.getproperty(obj::StreamOrderbook, name::Symbol)
+    name === :server_time && return getproperty(obj, Val(:server_time))
+    name === :recv_time && return getproperty(obj, Val(:recv_time))
+    name === :cts && return getproperty(obj, Val(:cts))
+    name === :type && return getproperty(obj, Val(:type))
+    name === :depth && return getproperty(obj, Val(:depth))
+    name === :symbol && return getproperty(obj, Val(:symbol))
+    name === :update_id && return getproperty(obj, Val(:update_id))
+    name === :seq_num && return getproperty(obj, Val(:seq_num))
+    name === :bid_prices && return getproperty(obj, Val(:bid_prices))
+    name === :bid_quantities && return getproperty(obj, Val(:bid_quantities))
+    name === :ask_prices && return getproperty(obj, Val(:ask_prices))
+    name === :ask_quantities && return getproperty(obj, Val(:ask_quantities))
+    getfield(obj, name)
+end
+
+@inline function Base.setproperty!(obj::StreamOrderbook, name::Symbol, value)
+    name === :server_time && return setproperty!(obj, Val(:server_time), value)
+    name === :recv_time && return setproperty!(obj, Val(:recv_time), value)
+    name === :cts && return setproperty!(obj, Val(:cts), value)
+    name === :type && return setproperty!(obj, Val(:type), value)
+    name === :depth && return setproperty!(obj, Val(:depth), value)
+    name === :symbol && return setproperty!(obj, Val(:symbol), value)
+    name === :update_id && return setproperty!(obj, Val(:update_id), value)
+    name === :seq_num && return setproperty!(obj, Val(:seq_num), value)
+    name === :bid_prices && return setproperty!(obj, Val(:bid_prices), value)
+    name === :bid_quantities && return setproperty!(obj, Val(:bid_quantities), value)
+    name === :ask_prices && return setproperty!(obj, Val(:ask_prices), value)
+    name === :ask_quantities && return setproperty!(obj, Val(:ask_quantities), value)
+    setfield!(obj, name, value)
 end
 
 # --------------------------------------------------------------------

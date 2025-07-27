@@ -497,20 +497,31 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code_body += f"\n# Member: {name}::{member_def.type_def.lang_type}\n"
         type_def = member_def.type_def
 
-        # getter
-        code_body += (
-            f"\n@inline function {name}(obj::{struct_def.name})::{type_def.lang_type}\n"
-        )
+        # getter getproperty
+        code_body += f"@inline function Base.getproperty(obj::{struct_def.name}, ::Val{{:{member_def.name}}})::{type_def.lang_type}\n"
         code_body += generate_get_member_body(ctx, member_def)
         code_body += "end\n"
         code_body += "\n"
+        # getter function (depreacted)
+        code_body += (
+            f"@inline {name}(obj::{struct_def.name})::{type_def.lang_type} = obj.{member_def.name}\n"
+        )
+        code_body += "\n"
 
-        # setter
+        # setter setproperty!
+        if type_def.lang_type == "StringView":
+            code_body += f"@inline function Base.setproperty!(obj::{struct_def.name}, ::Val{{:{member_def.name}}}, value::AbstractString)\n"
+        else:
+            code_body += f"@inline function Base.setproperty!(obj::{struct_def.name}, ::Val{{:{member_def.name}}}, value::{type_def.lang_type})\n"
+        code_body += generate_set_member_body(ctx, member_def)
+        code_body += "end\n"
+        code_body += "\n"
+        # setter function (depreacted)
         if type_def.lang_type == "StringView":
             code_body += f"@inline function {name}!(obj::{struct_def.name}, value::AbstractString)\n"
         else:
             code_body += f"@inline function {name}!(obj::{struct_def.name}, value::{type_def.lang_type})\n"
-        code_body += generate_set_member_body(ctx, member_def)
+        code_body += f"    obj.{member_def.name} = value\n"
         code_body += "end\n"
         code_body += "\n"
 
@@ -543,8 +554,24 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
             code_body += generate_size_member_body(ctx, member_def, True)
             code_body += "end\n"
 
+    # LLVM will use constant propagation and inline these generic getters
+    code_body += f"@inline function Base.getproperty(obj::{struct_def.name}, name::Symbol)\n"
+    for i, (name, member_def) in enumerate(struct_def.members.items()):
+        code_body += f"    name === :{member_def.name} && return getproperty(obj, Val(:{member_def.name}))\n"
+    code_body += f"    getfield(obj, name)\n"
+    code_body += f"end\n"
+    code_body += "\n"
+
+    # LLVM will use constant propagation and inline these generic setters
+    code_body += f"@inline function Base.setproperty!(obj::{struct_def.name}, name::Symbol, value)\n"
+    for i, (name, member_def) in enumerate(struct_def.members.items()):
+        code_body += f"    name === :{member_def.name} && return setproperty!(obj, Val(:{member_def.name}), value)\n"
+    code_body += f"    setfield!(obj, name, value)\n"
+    code_body += f"end\n"
+    code_body += "\n"
+
     code_body += (
-        "\n# --------------------------------------------------------------------\n"
+        "# --------------------------------------------------------------------\n"
     )
 
     code = "import Base.show\n"

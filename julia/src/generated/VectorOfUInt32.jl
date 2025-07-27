@@ -39,8 +39,7 @@ _finalize!(obj::VectorOfUInt32) = Base.Libc.free(obj.buffer)
 
 
 # Member: values::Vector{UInt32}
-
-@inline function values(obj::VectorOfUInt32)::Vector{UInt32}
+@inline function Base.getproperty(obj::VectorOfUInt32, ::Val{:values})::Vector{UInt32}
     ptr::Ptr{UInt32} = reinterpret(Ptr{UInt32}, obj.buffer + _values_offset(obj))
     unaligned_size::UInt64 = _values_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -48,7 +47,9 @@ _finalize!(obj::VectorOfUInt32) = Base.Libc.free(obj.buffer)
     return unsafe_wrap(Vector{UInt32}, ptr + 8, count, own=false)
 end
 
-@inline function values!(obj::VectorOfUInt32, value::Vector{UInt32})
+@inline values(obj::VectorOfUInt32)::Vector{UInt32} = obj.values
+
+@inline function Base.setproperty!(obj::VectorOfUInt32, ::Val{:values}, value::Vector{UInt32})
     offset::UInt64 = _values_offset(obj)
     contents_size::UInt64 = length(value) * 4
     unaligned_size::UInt64 = 8 + contents_size
@@ -59,6 +60,10 @@ end
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function values!(obj::VectorOfUInt32, value::Vector{UInt32})
+    obj.values = value
 end
 
 @inline function _values_offset(obj::VectorOfUInt32)::UInt64
@@ -85,8 +90,7 @@ end
 end
 
 # Member: str::StringView
-
-@inline function str(obj::VectorOfUInt32)::StringView
+@inline function Base.getproperty(obj::VectorOfUInt32, ::Val{:str})::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _str_offset(obj))
     unaligned_size::UInt64 = _str_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -94,7 +98,9 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function str!(obj::VectorOfUInt32, value::AbstractString)
+@inline str(obj::VectorOfUInt32)::StringView = obj.str
+
+@inline function Base.setproperty!(obj::VectorOfUInt32, ::Val{:str}, value::AbstractString)
     offset::UInt64 = _str_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -105,6 +111,10 @@ end
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function str!(obj::VectorOfUInt32, value::AbstractString)
+    obj.str = value
 end
 
 @inline function _str_offset(obj::VectorOfUInt32)::UInt64
@@ -128,6 +138,17 @@ end
     aligned_diff::UInt64 = stored_size >> 56
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
     return aligned_size - aligned_diff
+end
+@inline function Base.getproperty(obj::VectorOfUInt32, name::Symbol)
+    name === :values && return getproperty(obj, Val(:values))
+    name === :str && return getproperty(obj, Val(:str))
+    getfield(obj, name)
+end
+
+@inline function Base.setproperty!(obj::VectorOfUInt32, name::Symbol, value)
+    name === :values && return setproperty!(obj, Val(:values), value)
+    name === :str && return setproperty!(obj, Val(:str), value)
+    setfield!(obj, name, value)
 end
 
 # --------------------------------------------------------------------

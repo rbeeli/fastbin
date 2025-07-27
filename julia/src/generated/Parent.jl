@@ -41,13 +41,18 @@ _finalize!(obj::Parent) = Base.Libc.free(obj.buffer)
 
 
 # Member: field1::Int32
-
-@inline function field1(obj::Parent)::Int32
+@inline function Base.getproperty(obj::Parent, ::Val{:field1})::Int32
     return unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)))
 end
 
-@inline function field1!(obj::Parent, value::Int32)
+@inline field1(obj::Parent)::Int32 = obj.field1
+
+@inline function Base.setproperty!(obj::Parent, ::Val{:field1}, value::Int32)
     unsafe_store!(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)), value)
+end
+
+@inline function field1!(obj::Parent, value::Int32)
+    obj.field1 = value
 end
 
 @inline function _field1_offset(obj::Parent)::UInt64
@@ -64,17 +69,22 @@ end
 
 
 # Member: child1::ChildFixed
-
-@inline function child1(obj::Parent)::ChildFixed
+@inline function Base.getproperty(obj::Parent, ::Val{:child1})::ChildFixed
     ptr::Ptr{UInt8} = obj.buffer + _child1_offset(obj)
     return ChildFixed(ptr, _child1_size_aligned(obj), false)
 end
 
-@inline function child1!(obj::Parent, value::ChildFixed)
+@inline child1(obj::Parent)::ChildFixed = obj.child1
+
+@inline function Base.setproperty!(obj::Parent, ::Val{:child1}, value::ChildFixed)
     @assert fastbin_binary_size(value) > 0 "Cannot set member `child1`, parameter struct of type `ChildFixed` not finalized. Call fastbin_finalize!(obj) on struct after creation."
     offset::UInt64 = _child1_offset(obj)
     size::UInt64 = fastbin_binary_size(value)
     unsafe_copyto!(obj.buffer + offset, value.buffer, size)
+end
+
+@inline function child1!(obj::Parent, value::ChildFixed)
+    obj.child1 = value
 end
 
 @inline function _child1_offset(obj::Parent)::UInt64
@@ -91,17 +101,22 @@ end
 
 
 # Member: child2::ChildVar
-
-@inline function child2(obj::Parent)::ChildVar
+@inline function Base.getproperty(obj::Parent, ::Val{:child2})::ChildVar
     ptr::Ptr{UInt8} = obj.buffer + _child2_offset(obj)
     return ChildVar(ptr, _child2_size_aligned(obj), false)
 end
 
-@inline function child2!(obj::Parent, value::ChildVar)
+@inline child2(obj::Parent)::ChildVar = obj.child2
+
+@inline function Base.setproperty!(obj::Parent, ::Val{:child2}, value::ChildVar)
     @assert fastbin_binary_size(value) > 0 "Cannot set member `child2`, parameter struct of type `ChildVar` not finalized. Call fastbin_finalize!(obj) on struct after creation."
     offset::UInt64 = _child2_offset(obj)
     size::UInt64 = fastbin_binary_size(value)
     unsafe_copyto!(obj.buffer + offset, value.buffer, size)
+end
+
+@inline function child2!(obj::Parent, value::ChildVar)
+    obj.child2 = value
 end
 
 @inline function _child2_offset(obj::Parent)::UInt64
@@ -118,8 +133,7 @@ end
 
 
 # Member: str::StringView
-
-@inline function str(obj::Parent)::StringView
+@inline function Base.getproperty(obj::Parent, ::Val{:str})::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _str_offset(obj))
     unaligned_size::UInt64 = _str_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -127,7 +141,9 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function str!(obj::Parent, value::AbstractString)
+@inline str(obj::Parent)::StringView = obj.str
+
+@inline function Base.setproperty!(obj::Parent, ::Val{:str}, value::AbstractString)
     offset::UInt64 = _str_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -138,6 +154,10 @@ end
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function str!(obj::Parent, value::AbstractString)
+    obj.str = value
 end
 
 @inline function _str_offset(obj::Parent)::UInt64
@@ -161,6 +181,21 @@ end
     aligned_diff::UInt64 = stored_size >> 56
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
     return aligned_size - aligned_diff
+end
+@inline function Base.getproperty(obj::Parent, name::Symbol)
+    name === :field1 && return getproperty(obj, Val(:field1))
+    name === :child1 && return getproperty(obj, Val(:child1))
+    name === :child2 && return getproperty(obj, Val(:child2))
+    name === :str && return getproperty(obj, Val(:str))
+    getfield(obj, name)
+end
+
+@inline function Base.setproperty!(obj::Parent, name::Symbol, value)
+    name === :field1 && return setproperty!(obj, Val(:field1), value)
+    name === :child1 && return setproperty!(obj, Val(:child1), value)
+    name === :child2 && return setproperty!(obj, Val(:child2), value)
+    name === :str && return setproperty!(obj, Val(:str), value)
+    setfield!(obj, name, value)
 end
 
 # --------------------------------------------------------------------

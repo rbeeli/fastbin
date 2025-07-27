@@ -37,13 +37,18 @@ _finalize!(obj::ChildFixed) = Base.Libc.free(obj.buffer)
 
 
 # Member: field1::Int32
-
-@inline function field1(obj::ChildFixed)::Int32
+@inline function Base.getproperty(obj::ChildFixed, ::Val{:field1})::Int32
     return unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)))
 end
 
-@inline function field1!(obj::ChildFixed, value::Int32)
+@inline field1(obj::ChildFixed)::Int32 = obj.field1
+
+@inline function Base.setproperty!(obj::ChildFixed, ::Val{:field1}, value::Int32)
     unsafe_store!(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)), value)
+end
+
+@inline function field1!(obj::ChildFixed, value::Int32)
+    obj.field1 = value
 end
 
 @inline function _field1_offset(obj::ChildFixed)::UInt64
@@ -60,13 +65,18 @@ end
 
 
 # Member: field2::Int32
-
-@inline function field2(obj::ChildFixed)::Int32
+@inline function Base.getproperty(obj::ChildFixed, ::Val{:field2})::Int32
     return unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + _field2_offset(obj)))
 end
 
-@inline function field2!(obj::ChildFixed, value::Int32)
+@inline field2(obj::ChildFixed)::Int32 = obj.field2
+
+@inline function Base.setproperty!(obj::ChildFixed, ::Val{:field2}, value::Int32)
     unsafe_store!(reinterpret(Ptr{Int32}, obj.buffer + _field2_offset(obj)), value)
+end
+
+@inline function field2!(obj::ChildFixed, value::Int32)
+    obj.field2 = value
 end
 
 @inline function _field2_offset(obj::ChildFixed)::UInt64
@@ -81,6 +91,17 @@ end
     return 8
 end
 
+@inline function Base.getproperty(obj::ChildFixed, name::Symbol)
+    name === :field1 && return getproperty(obj, Val(:field1))
+    name === :field2 && return getproperty(obj, Val(:field2))
+    getfield(obj, name)
+end
+
+@inline function Base.setproperty!(obj::ChildFixed, name::Symbol, value)
+    name === :field1 && return setproperty!(obj, Val(:field1), value)
+    name === :field2 && return setproperty!(obj, Val(:field2), value)
+    setfield!(obj, name, value)
+end
 
 # --------------------------------------------------------------------
 

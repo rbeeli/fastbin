@@ -51,13 +51,18 @@ _finalize!(obj::StreamTrade) = Base.Libc.free(obj.buffer)
 
 
 # Member: server_time::Int64
-
-@inline function server_time(obj::StreamTrade)::Int64
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:server_time})::Int64
     return unsafe_load(reinterpret(Ptr{Int64}, obj.buffer + _server_time_offset(obj)))
 end
 
-@inline function server_time!(obj::StreamTrade, value::Int64)
+@inline server_time(obj::StreamTrade)::Int64 = obj.server_time
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:server_time}, value::Int64)
     unsafe_store!(reinterpret(Ptr{Int64}, obj.buffer + _server_time_offset(obj)), value)
+end
+
+@inline function server_time!(obj::StreamTrade, value::Int64)
+    obj.server_time = value
 end
 
 @inline function _server_time_offset(obj::StreamTrade)::UInt64
@@ -74,13 +79,18 @@ end
 
 
 # Member: recv_time::Int64
-
-@inline function recv_time(obj::StreamTrade)::Int64
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:recv_time})::Int64
     return unsafe_load(reinterpret(Ptr{Int64}, obj.buffer + _recv_time_offset(obj)))
 end
 
-@inline function recv_time!(obj::StreamTrade, value::Int64)
+@inline recv_time(obj::StreamTrade)::Int64 = obj.recv_time
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:recv_time}, value::Int64)
     unsafe_store!(reinterpret(Ptr{Int64}, obj.buffer + _recv_time_offset(obj)), value)
+end
+
+@inline function recv_time!(obj::StreamTrade, value::Int64)
+    obj.recv_time = value
 end
 
 @inline function _recv_time_offset(obj::StreamTrade)::UInt64
@@ -97,8 +107,7 @@ end
 
 
 # Member: symbol::StringView
-
-@inline function symbol(obj::StreamTrade)::StringView
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:symbol})::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _symbol_offset(obj))
     unaligned_size::UInt64 = _symbol_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -106,7 +115,9 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function symbol!(obj::StreamTrade, value::AbstractString)
+@inline symbol(obj::StreamTrade)::StringView = obj.symbol
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:symbol}, value::AbstractString)
     offset::UInt64 = _symbol_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -117,6 +128,10 @@ end
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function symbol!(obj::StreamTrade, value::AbstractString)
+    obj.symbol = value
 end
 
 @inline function _symbol_offset(obj::StreamTrade)::UInt64
@@ -143,13 +158,18 @@ end
 end
 
 # Member: fill_time::Int64
-
-@inline function fill_time(obj::StreamTrade)::Int64
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:fill_time})::Int64
     return unsafe_load(reinterpret(Ptr{Int64}, obj.buffer + _fill_time_offset(obj)))
 end
 
-@inline function fill_time!(obj::StreamTrade, value::Int64)
+@inline fill_time(obj::StreamTrade)::Int64 = obj.fill_time
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:fill_time}, value::Int64)
     unsafe_store!(reinterpret(Ptr{Int64}, obj.buffer + _fill_time_offset(obj)), value)
+end
+
+@inline function fill_time!(obj::StreamTrade, value::Int64)
+    obj.fill_time = value
 end
 
 @inline function _fill_time_offset(obj::StreamTrade)::UInt64
@@ -166,13 +186,18 @@ end
 
 
 # Member: side::TradeSide.T
-
-@inline function side(obj::StreamTrade)::TradeSide.T
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:side})::TradeSide.T
     return unsafe_load(reinterpret(Ptr{TradeSide.T}, obj.buffer + _side_offset(obj)))
 end
 
-@inline function side!(obj::StreamTrade, value::TradeSide.T)
+@inline side(obj::StreamTrade)::TradeSide.T = obj.side
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:side}, value::TradeSide.T)
     unsafe_store!(reinterpret(Ptr{TradeSide.T}, obj.buffer + _side_offset(obj)), value)
+end
+
+@inline function side!(obj::StreamTrade, value::TradeSide.T)
+    obj.side = value
 end
 
 @inline function _side_offset(obj::StreamTrade)::UInt64
@@ -189,13 +214,18 @@ end
 
 
 # Member: price::Float64
-
-@inline function price(obj::StreamTrade)::Float64
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:price})::Float64
     return unsafe_load(reinterpret(Ptr{Float64}, obj.buffer + _price_offset(obj)))
 end
 
-@inline function price!(obj::StreamTrade, value::Float64)
+@inline price(obj::StreamTrade)::Float64 = obj.price
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:price}, value::Float64)
     unsafe_store!(reinterpret(Ptr{Float64}, obj.buffer + _price_offset(obj)), value)
+end
+
+@inline function price!(obj::StreamTrade, value::Float64)
+    obj.price = value
 end
 
 @inline function _price_offset(obj::StreamTrade)::UInt64
@@ -212,13 +242,18 @@ end
 
 
 # Member: price_chg_dir::TickDirection.T
-
-@inline function price_chg_dir(obj::StreamTrade)::TickDirection.T
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:price_chg_dir})::TickDirection.T
     return unsafe_load(reinterpret(Ptr{TickDirection.T}, obj.buffer + _price_chg_dir_offset(obj)))
 end
 
-@inline function price_chg_dir!(obj::StreamTrade, value::TickDirection.T)
+@inline price_chg_dir(obj::StreamTrade)::TickDirection.T = obj.price_chg_dir
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:price_chg_dir}, value::TickDirection.T)
     unsafe_store!(reinterpret(Ptr{TickDirection.T}, obj.buffer + _price_chg_dir_offset(obj)), value)
+end
+
+@inline function price_chg_dir!(obj::StreamTrade, value::TickDirection.T)
+    obj.price_chg_dir = value
 end
 
 @inline function _price_chg_dir_offset(obj::StreamTrade)::UInt64
@@ -235,13 +270,18 @@ end
 
 
 # Member: size::Float64
-
-@inline function size(obj::StreamTrade)::Float64
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:size})::Float64
     return unsafe_load(reinterpret(Ptr{Float64}, obj.buffer + _size_offset(obj)))
 end
 
-@inline function size!(obj::StreamTrade, value::Float64)
+@inline size(obj::StreamTrade)::Float64 = obj.size
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:size}, value::Float64)
     unsafe_store!(reinterpret(Ptr{Float64}, obj.buffer + _size_offset(obj)), value)
+end
+
+@inline function size!(obj::StreamTrade, value::Float64)
+    obj.size = value
 end
 
 @inline function _size_offset(obj::StreamTrade)::UInt64
@@ -258,8 +298,7 @@ end
 
 
 # Member: trade_id::StringView
-
-@inline function trade_id(obj::StreamTrade)::StringView
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:trade_id})::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _trade_id_offset(obj))
     unaligned_size::UInt64 = _trade_id_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
@@ -267,7 +306,9 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function trade_id!(obj::StreamTrade, value::AbstractString)
+@inline trade_id(obj::StreamTrade)::StringView = obj.trade_id
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:trade_id}, value::AbstractString)
     offset::UInt64 = _trade_id_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -278,6 +319,10 @@ end
     dest_ptr::Ptr{UInt8} = obj.buffer + offset + 8
     src_ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, pointer(value))
     unsafe_copyto!(dest_ptr, src_ptr, contents_size)
+end
+
+@inline function trade_id!(obj::StreamTrade, value::AbstractString)
+    obj.trade_id = value
 end
 
 @inline function _trade_id_offset(obj::StreamTrade)::UInt64
@@ -304,13 +349,18 @@ end
 end
 
 # Member: block_trade::Bool
-
-@inline function block_trade(obj::StreamTrade)::Bool
+@inline function Base.getproperty(obj::StreamTrade, ::Val{:block_trade})::Bool
     return unsafe_load(reinterpret(Ptr{Bool}, obj.buffer + _block_trade_offset(obj)))
 end
 
-@inline function block_trade!(obj::StreamTrade, value::Bool)
+@inline block_trade(obj::StreamTrade)::Bool = obj.block_trade
+
+@inline function Base.setproperty!(obj::StreamTrade, ::Val{:block_trade}, value::Bool)
     unsafe_store!(reinterpret(Ptr{Bool}, obj.buffer + _block_trade_offset(obj)), value)
+end
+
+@inline function block_trade!(obj::StreamTrade, value::Bool)
+    obj.block_trade = value
 end
 
 @inline function _block_trade_offset(obj::StreamTrade)::UInt64
@@ -325,6 +375,33 @@ end
     return 8
 end
 
+@inline function Base.getproperty(obj::StreamTrade, name::Symbol)
+    name === :server_time && return getproperty(obj, Val(:server_time))
+    name === :recv_time && return getproperty(obj, Val(:recv_time))
+    name === :symbol && return getproperty(obj, Val(:symbol))
+    name === :fill_time && return getproperty(obj, Val(:fill_time))
+    name === :side && return getproperty(obj, Val(:side))
+    name === :price && return getproperty(obj, Val(:price))
+    name === :price_chg_dir && return getproperty(obj, Val(:price_chg_dir))
+    name === :size && return getproperty(obj, Val(:size))
+    name === :trade_id && return getproperty(obj, Val(:trade_id))
+    name === :block_trade && return getproperty(obj, Val(:block_trade))
+    getfield(obj, name)
+end
+
+@inline function Base.setproperty!(obj::StreamTrade, name::Symbol, value)
+    name === :server_time && return setproperty!(obj, Val(:server_time), value)
+    name === :recv_time && return setproperty!(obj, Val(:recv_time), value)
+    name === :symbol && return setproperty!(obj, Val(:symbol), value)
+    name === :fill_time && return setproperty!(obj, Val(:fill_time), value)
+    name === :side && return setproperty!(obj, Val(:side), value)
+    name === :price && return setproperty!(obj, Val(:price), value)
+    name === :price_chg_dir && return setproperty!(obj, Val(:price_chg_dir), value)
+    name === :size && return setproperty!(obj, Val(:size), value)
+    name === :trade_id && return setproperty!(obj, Val(:trade_id), value)
+    name === :block_trade && return setproperty!(obj, Val(:block_trade), value)
+    setfield!(obj, name, value)
+end
 
 # --------------------------------------------------------------------
 
