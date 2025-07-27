@@ -707,25 +707,64 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
 def generate_single_include_file(output_dir: str, ctx: GenContext):
     code = f"module {ctx.namespace}\n\n"
 
-    for enum_name in ctx.enums.keys():
-        code += f'include("{enum_name}.jl")\n'
+    enum_names = [x for x in ctx.enums.keys()]
+    struct_names = [x for x in ctx.structs.keys()]
+    function_exports = [
+        "fastbin_calc_binary_size",
+        "fastbin_binary_size",
+        "fastbin_finalize!",
+		]
+    
+    if enum_names:
+        function_exports.append("from_string")
 
-    code += "\n"
+    for struct in ctx.structs.values():
+        members = struct.members.values()
+        for member in members:
+            function_exports.append(f"{member.name}")  # getter
+            function_exports.append(f"{member.name}!")  # setter
 
-    for struct_name in ctx.structs.keys():
-        code += f'include("{struct_name}.jl")\n'
+    # unique function exports
+    function_exports = list(set(function_exports))
 
-    code += "\n"
+    # exports
+    if enum_names:
+        code += "# enums\n"
+        code += f"export {',\n    '.join(enum_names)}\n"
+        code += "\n"
 
-    # export all
-    code += "# export all types and functions\n"
-    code += "for n in names(@__MODULE__; all=true)\n"
-    code += (
-        "    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include) && !startswith(string(n), \"_\")\n"
-    )
-    code += "        @eval export $n\n"
-    code += "    end\n"
-    code += "end\n\n"
+    if struct_names:
+        code += "# structs\n"
+        code += f"export {',\n    '.join(struct_names)}\n"
+        code += "\n"
+
+    if function_exports:
+        code += "# functions\n"
+        code += f"export {',\n    '.join(function_exports)}\n"
+        code += "\n"
+
+    # includes
+    if enum_names:
+        code += "# enums\n"
+        for enum_name in enum_names:
+            code += f'include("{enum_name}.jl")\n'
+        code += "\n"
+
+    if struct_names:
+        code += "# structs\n"
+        for struct_name in struct_names:
+            code += f'include("{struct_name}.jl")\n'
+        code += "\n"
+
+    # # export all
+    # code += "# export all types and functions\n"
+    # code += "for n in names(@__MODULE__; all=true)\n"
+    # code += (
+    #     "    if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include) && !startswith(string(n), \"_\")\n"
+    # )
+    # code += "        @eval export $n\n"
+    # code += "    end\n"
+    # code += "end\n\n"
 
     code += "end\n"
 
