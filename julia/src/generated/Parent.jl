@@ -127,7 +127,7 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function str!(obj::Parent, value::T) where {T<:AbstractString}
+@inline function str!(obj::Parent, value::AbstractString)
     offset::UInt64 = _str_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -150,7 +150,7 @@ end
     return aligned_size
 end
 
-@inline function _str_calc_size_aligned(::Type{Parent}, value::T)::UInt64 where {T<:AbstractString}
+@inline function _str_calc_size_aligned(::Type{Parent}, value::AbstractString)::UInt64
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
     return (unaligned_size + 7) & ~7
@@ -171,7 +171,7 @@ end
 
 @inline function fastbin_calc_binary_size(::Type{Parent},
     child2::ChildVar,
-    str::StringView
+    str::AbstractString
 )
     return 32 +
         _child2_calc_size_aligned(Parent, child2) +

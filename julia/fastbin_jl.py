@@ -507,7 +507,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
 
         # setter
         if type_def.lang_type == "StringView":
-            code_body += f"@inline function {name}!(obj::{struct_def.name}, value::T) where {{T<:AbstractString}}\n"
+            code_body += f"@inline function {name}!(obj::{struct_def.name}, value::AbstractString)\n"
         else:
             code_body += f"@inline function {name}!(obj::{struct_def.name}, value::{type_def.lang_type})\n"
         code_body += generate_set_member_body(ctx, member_def)
@@ -530,7 +530,7 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
 
         # calc size aligned
         if type_def.lang_type == "StringView":
-            code_body += f"@inline function {prefix}{name}_calc_size_aligned(::Type{{{struct_def.name}}}, value::T)::UInt64 where {{T<:AbstractString}}\n"
+            code_body += f"@inline function {prefix}{name}_calc_size_aligned(::Type{{{struct_def.name}}}, value::AbstractString)::UInt64\n"
         else:
             code_body += f"@inline function {prefix}{name}_calc_size_aligned(::Type{{{struct_def.name}}}, value::{type_def.lang_type})::UInt64\n"
         code_body += generate_calc_size_aligned_member_body(ctx, struct_def, member_def)
@@ -649,7 +649,10 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
         code += "\n"
         code += f"@inline function fastbin_calc_binary_size(::Type{{{struct_def.name}}}"
         for name, member_def in var_members:
-            code += f",\n    {member_def.name}::{member_def.type_def.lang_type}"
+            if member_def.type_def.lang_type == "StringView":
+                code += f",\n    {member_def.name}::AbstractString"
+            else:
+                code += f",\n    {member_def.name}::{member_def.type_def.lang_type}"
         code += "\n)\n"
         fixed_size = 8 + sum([v.type_def.aligned_size for (_, v) in fixed_members])
         code += f"    return {fixed_size} +\n"

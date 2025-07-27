@@ -106,7 +106,7 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function symbol!(obj::StreamTrade, value::T) where {T<:AbstractString}
+@inline function symbol!(obj::StreamTrade, value::AbstractString)
     offset::UInt64 = _symbol_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -129,7 +129,7 @@ end
     return aligned_size
 end
 
-@inline function _symbol_calc_size_aligned(::Type{StreamTrade}, value::T)::UInt64 where {T<:AbstractString}
+@inline function _symbol_calc_size_aligned(::Type{StreamTrade}, value::AbstractString)::UInt64
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
     return (unaligned_size + 7) & ~7
@@ -267,7 +267,7 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function trade_id!(obj::StreamTrade, value::T) where {T<:AbstractString}
+@inline function trade_id!(obj::StreamTrade, value::AbstractString)
     offset::UInt64 = _trade_id_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -290,7 +290,7 @@ end
     return aligned_size
 end
 
-@inline function _trade_id_calc_size_aligned(::Type{StreamTrade}, value::T)::UInt64 where {T<:AbstractString}
+@inline function _trade_id_calc_size_aligned(::Type{StreamTrade}, value::AbstractString)::UInt64
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
     return (unaligned_size + 7) & ~7
@@ -333,8 +333,8 @@ end
 end
 
 @inline function fastbin_calc_binary_size(::Type{StreamTrade},
-    symbol::StringView,
-    trade_id::StringView
+    symbol::AbstractString,
+    trade_id::AbstractString
 )
     return 72 +
         _symbol_calc_size_aligned(StreamTrade, symbol) +

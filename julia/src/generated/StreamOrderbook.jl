@@ -177,7 +177,7 @@ end
     return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
 end
 
-@inline function symbol!(obj::StreamOrderbook, value::T) where {T<:AbstractString}
+@inline function symbol!(obj::StreamOrderbook, value::AbstractString)
     offset::UInt64 = _symbol_offset(obj)
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
@@ -200,7 +200,7 @@ end
     return aligned_size
 end
 
-@inline function _symbol_calc_size_aligned(::Type{StreamOrderbook}, value::T)::UInt64 where {T<:AbstractString}
+@inline function _symbol_calc_size_aligned(::Type{StreamOrderbook}, value::AbstractString)::UInt64
     contents_size::UInt64 = length(value) * 1
     unaligned_size::UInt64 = 8 + contents_size
     return (unaligned_size + 7) & ~7
@@ -418,7 +418,7 @@ end
 end
 
 @inline function fastbin_calc_binary_size(::Type{StreamOrderbook},
-    symbol::StringView,
+    symbol::AbstractString,
     bid_prices::Vector{Float64},
     bid_quantities::Vector{Float64},
     ask_prices::Vector{Float64},
