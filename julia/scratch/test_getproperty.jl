@@ -42,7 +42,6 @@ end
 #     end
 # end
 
-
 const a = A(64)
 field1!(a, Int32(42))
 println(field1(a))
@@ -57,28 +56,24 @@ println(field1(a))
 # @benchmark a.field1
 # @benchmark field1(a)
 
-
-
-
-
 # read access
 @inline Base.getproperty(obj::A, ::Val{:field1})::Int32 =
     unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + fastbin_field1_offset(obj)))
 
-@inline Base.getproperty(obj::A, name::Symbol) =
-    name === :field1 ? getproperty(obj, Val(name)) : getfield(obj, name)
+@inline function Base.getproperty(obj::A, name::Symbol)
+    name === :field1 && return getproperty(obj, Val(:field1))
+    getfield(obj, name)
+end
 
 # write access
 @inline function Base.setproperty!(obj::A, ::Val{:field1}, value::Int32)
     unsafe_store!(reinterpret(Ptr{Int32}, obj.buffer + fastbin_field1_offset(obj)), value)
-    value
+    nothing
 end
 @inline function Base.setproperty!(obj::A, name::Symbol, value)
-    name === :field1 && return setproperty!(obj, Val(name), value)
+    name === :field1 && return setproperty!(obj, Val(:field1), value)
     setfield!(obj, name, value)
 end
-
-
 
 field1!(a, Int32(42))
 
@@ -86,19 +81,33 @@ field1!(a, Int32(42))
 
 @benchmark $a.field1
 
+a.buffer
+
 new_val = Int32(32)
 @benchmark field1!($a, $new_val)
 
 @benchmark $a.field1 = $new_val
 
-@inline function helper(c::A)
+@inline function getter_property(c::A)
     c.field1
 end
 
-@inline function helper2(c::A)
+@inline function getter_function(c::A)
     field1(c)
 end
 
-@code_native helper(a)
+@inline function setter_property(c::A, val)
+    c.field1 = val
+end
 
-@code_native helper2(a)
+@inline function setter_function(c::A, val)
+    field1!(c, val)
+end
+
+@code_native getter_property(a)
+
+@code_native getter_function(a)
+
+@code_native setter_property(a, Int32(10))
+
+@code_native setter_function(a, Int32(10))
