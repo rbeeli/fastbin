@@ -182,6 +182,9 @@ end
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
     return aligned_size - aligned_diff
 end
+
+# --------------------------------------------------------------------
+
 @inline function Base.getproperty(obj::Parent, name::Symbol)
     name === :field1 && return getproperty(obj, Val(:field1))
     name === :child1 && return getproperty(obj, Val(:child1))
@@ -196,6 +199,10 @@ end
     name === :child2 && return setproperty!(obj, Val(:child2), value)
     name === :str && return setproperty!(obj, Val(:str), value)
     setfield!(obj, name, value)
+end
+
+@inline function Base.propertynames(obj::Parent)
+    (:field1, :child1, :child2, :str,)
 end
 
 # --------------------------------------------------------------------

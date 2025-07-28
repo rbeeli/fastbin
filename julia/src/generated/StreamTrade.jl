@@ -375,6 +375,9 @@ end
     return 8
 end
 
+
+# --------------------------------------------------------------------
+
 @inline function Base.getproperty(obj::StreamTrade, name::Symbol)
     name === :server_time && return getproperty(obj, Val(:server_time))
     name === :recv_time && return getproperty(obj, Val(:recv_time))
@@ -401,6 +404,10 @@ end
     name === :trade_id && return setproperty!(obj, Val(:trade_id), value)
     name === :block_trade && return setproperty!(obj, Val(:block_trade), value)
     setfield!(obj, name, value)
+end
+
+@inline function Base.propertynames(obj::StreamTrade)
+    (:server_time, :recv_time, :symbol, :fill_time, :side, :price, :price_chg_dir, :size, :trade_id, :block_trade,)
 end
 
 # --------------------------------------------------------------------

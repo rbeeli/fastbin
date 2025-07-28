@@ -554,7 +554,11 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
             code_body += generate_size_member_body(ctx, member_def, True)
             code_body += "end\n"
 
-    # LLVM will use constant propagation and inline these generic getters
+    code_body += (
+        "\n# --------------------------------------------------------------------\n\n"
+    )
+
+    # Base.getproperty: constant propagation will inline these generic getters
     code_body += f"@inline function Base.getproperty(obj::{struct_def.name}, name::Symbol)\n"
     for i, (name, member_def) in enumerate(struct_def.members.items()):
         code_body += f"    name === :{member_def.name} && return getproperty(obj, Val(:{member_def.name}))\n"
@@ -562,11 +566,18 @@ def generate_struct(ctx: GenContext, struct_def: StructDef):
     code_body += f"end\n"
     code_body += "\n"
 
-    # LLVM will use constant propagation and inline these generic setters
+    # Base.setproperty!: constant propagation will inline these generic setters
     code_body += f"@inline function Base.setproperty!(obj::{struct_def.name}, name::Symbol, value)\n"
     for i, (name, member_def) in enumerate(struct_def.members.items()):
         code_body += f"    name === :{member_def.name} && return setproperty!(obj, Val(:{member_def.name}), value)\n"
     code_body += f"    setfield!(obj, name, value)\n"
+    code_body += f"end\n"
+    code_body += "\n"
+
+    # Base.propertynames
+    code_body += f"@inline function Base.propertynames(obj::{struct_def.name})\n"
+    prop_symbols = [f":{x}" for x in struct_def.members.keys()]
+    code_body += f"    ({', '.join(prop_symbols)},)\n"
     code_body += f"end\n"
     code_body += "\n"
 

@@ -91,6 +91,9 @@ end
     return 8
 end
 
+
+# --------------------------------------------------------------------
+
 @inline function Base.getproperty(obj::ChildFixed, name::Symbol)
     name === :field1 && return getproperty(obj, Val(:field1))
     name === :field2 && return getproperty(obj, Val(:field2))
@@ -101,6 +104,10 @@ end
     name === :field1 && return setproperty!(obj, Val(:field1), value)
     name === :field2 && return setproperty!(obj, Val(:field2), value)
     setfield!(obj, name, value)
+end
+
+@inline function Base.propertynames(obj::ChildFixed)
+    (:field1, :field2,)
 end
 
 # --------------------------------------------------------------------

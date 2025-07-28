@@ -37,7 +37,6 @@ end
 
 _finalize!(obj::ChildVar) = Base.Libc.free(obj.buffer)
 
-
 # Member: field1::Int32
 @inline function Base.getproperty(obj::ChildVar, ::Val{:field1})::Int32
     return unsafe_load(reinterpret(Ptr{Int32}, obj.buffer + _field1_offset(obj)))
@@ -65,14 +64,13 @@ end
     return 8
 end
 
-
 # Member: field2::StringView
 @inline function Base.getproperty(obj::ChildVar, ::Val{:field2})::StringView
     ptr::Ptr{UInt8} = reinterpret(Ptr{UInt8}, obj.buffer + _field2_offset(obj))
     unaligned_size::UInt64 = _field2_size_unaligned(obj)
     n_bytes::UInt64 = unaligned_size - 8
     count::UInt64 = n_bytes
-    return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count, own=false))
+    return StringView(unsafe_wrap(Vector{UInt8}, ptr + 8, count; own=false))
 end
 
 @inline field2(obj::ChildVar)::StringView = obj.field2
@@ -116,6 +114,9 @@ end
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
     return aligned_size - aligned_diff
 end
+
+# --------------------------------------------------------------------
+
 @inline function Base.getproperty(obj::ChildVar, name::Symbol)
     name === :field1 && return getproperty(obj, Val(:field1))
     name === :field2 && return getproperty(obj, Val(:field2))
@@ -128,17 +129,18 @@ end
     setfield!(obj, name, value)
 end
 
+@inline function Base.propertynames(obj::ChildVar)
+    (:field1, :field2)
+end
+
 # --------------------------------------------------------------------
 
 @inline function fastbin_calc_binary_size(obj::ChildVar)::UInt64
     return _field2_offset(obj) + _field2_size_aligned(obj)
 end
 
-@inline function fastbin_calc_binary_size(::Type{ChildVar},
-    field2::AbstractString
-)
-    return 16 +
-        _field2_calc_size_aligned(ChildVar, field2)
+@inline function fastbin_calc_binary_size(::Type{ChildVar}, field2::AbstractString)
+    return 16 + _field2_calc_size_aligned(ChildVar, field2)
 end
 
 """

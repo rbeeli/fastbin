@@ -470,6 +470,9 @@ end
     stored_size::UInt64 = unsafe_load(reinterpret(Ptr{UInt64}, obj.buffer + _ask_quantities_offset(obj)))
     return stored_size
 end
+
+# --------------------------------------------------------------------
+
 @inline function Base.getproperty(obj::StreamOrderbook, name::Symbol)
     name === :server_time && return getproperty(obj, Val(:server_time))
     name === :recv_time && return getproperty(obj, Val(:recv_time))
@@ -500,6 +503,10 @@ end
     name === :ask_prices && return setproperty!(obj, Val(:ask_prices), value)
     name === :ask_quantities && return setproperty!(obj, Val(:ask_quantities), value)
     setfield!(obj, name, value)
+end
+
+@inline function Base.propertynames(obj::StreamOrderbook)
+    (:server_time, :recv_time, :cts, :type, :depth, :symbol, :update_id, :seq_num, :bid_prices, :bid_quantities, :ask_prices, :ask_quantities,)
 end
 
 # --------------------------------------------------------------------

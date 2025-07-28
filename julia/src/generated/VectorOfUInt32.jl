@@ -139,6 +139,9 @@ end
     aligned_size::UInt64 = stored_size & 0x00FFFFFFFFFFFFFF
     return aligned_size - aligned_diff
 end
+
+# --------------------------------------------------------------------
+
 @inline function Base.getproperty(obj::VectorOfUInt32, name::Symbol)
     name === :values && return getproperty(obj, Val(:values))
     name === :str && return getproperty(obj, Val(:str))
@@ -149,6 +152,10 @@ end
     name === :values && return setproperty!(obj, Val(:values), value)
     name === :str && return setproperty!(obj, Val(:str), value)
     setfield!(obj, name, value)
+end
+
+@inline function Base.propertynames(obj::VectorOfUInt32)
+    (:values, :str,)
 end
 
 # --------------------------------------------------------------------
